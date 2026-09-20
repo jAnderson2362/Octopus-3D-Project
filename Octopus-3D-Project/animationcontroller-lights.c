@@ -134,10 +134,23 @@ void main(int argc, char **argv);
 void init(void);
 void think(void);
 void initLights(void);
+void drawGround();
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
+
+void drawGround() {
+	// Draw a simple ground plane
+	glColor3f(0.3f, 0.8f, 0.3f); // Green color
+	glBegin(GL_QUADS);
+	glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
+	glVertex3f(-50.0f, 0.0f, -50.0f);
+	glVertex3f(-50.0f, 0.0f, 50.0f);
+	glVertex3f(50.0f, 0.0f, 50.0f);
+	glVertex3f(50.0f, 0.0f, -50.0f);
+	glEnd();
+}
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
@@ -198,6 +211,13 @@ void display(void)
 		Remember to add prototypes for any new functions to the "Animation-Specific
 		Function Prototypes" section near the top of this template.
 	*/
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0, 5, 10, 0, 0, 0, 0, 1, 0);
+	drawGround();
+	glutSwapBuffers();
+	
 }
 
 /*
@@ -205,6 +225,11 @@ void display(void)
 */
 void reshape(int width, int h)
 {
+	glViewport(0, 0, width, h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(60, (GLfloat)width / (GLfloat)h, 1.0, 100.0);
+	glMatrixMode(GL_MODELVIEW);
 }
 
 /*
@@ -428,6 +453,8 @@ void init(void)
 	initLights();
 	
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
+	glEnable(GL_DEPTH_TEST);
+	glClearColor(0.0, 0.1, 0.3, 1.0);
 }
 
 /*

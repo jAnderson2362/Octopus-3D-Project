@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Octopus-3D-Project.vcxproj" />
+  <Project Path="Octopus-3D-Project.vcxproj" Id="17e6c88e-764b-41cf-935d-c11b9a94f3b1" />
 </Solution>
