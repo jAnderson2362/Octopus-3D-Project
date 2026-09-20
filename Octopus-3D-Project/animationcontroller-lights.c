@@ -150,6 +150,18 @@ void drawGround() {
 	glVertex3f(50.0f, 0.0f, 50.0f);
 	glVertex3f(50.0f, 0.0f, -50.0f);
 	glEnd();
+
+	for (int x = -50; x < 50; x += 10) {
+		for (int z = -50; z < 50; z += 10) {
+			glBegin(GL_QUADS);
+			glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
+			glVertex3f(x, 0.0f, z);
+			glVertex3f(x, 0.0f, z + 10);
+			glVertex3f(x + 10, 0.0f, z + 10);
+			glVertex3f(x + 10, 0.0f, z);
+			glEnd();
+		}
+	}
 }
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
@@ -202,6 +214,7 @@ void main(int argc, char **argv)
  */
 void display(void)
 {
+	GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 	/*
 		TEMPLATE: REPLACE THIS COMMENT WITH YOUR DRAWING CODE
 		
@@ -214,7 +227,16 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(0, 5, 10, 0, 0, 0, 0, 1, 0);
+	gluLookAt(0, 20, 40, 0, 0, 0, 0, 1, 0);
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+
+	if (renderFillEnabled) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+	else {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+
 	drawGround();
 	glutSwapBuffers();
 	
@@ -536,7 +558,7 @@ void initLights(void)
 {
 	// Simple lighting setup
 	GLfloat globalAmbient[] = { 0.4f, 0.4f, 0.4f, 1 };
-	GLfloat lightPosition[] = { 5.0f, 5.0f, 5.0f, 1.0f };
+	GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 	GLfloat ambientLight[] = { 0, 0, 0, 1 };
 	GLfloat diffuseLight[] = { 1, 1, 1, 1 };
 	GLfloat specularLight[] = { 1, 1, 1, 1 };
