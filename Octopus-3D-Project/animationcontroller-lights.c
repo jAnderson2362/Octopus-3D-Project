@@ -136,6 +136,42 @@ void think(void);
 void initLights(void);
 void drawGround();
 
+void drawTentacle() {
+	glPushMatrix();
+	glColor3f(.0f, 0.8f, 0.8f);
+	glutSolidSphere(1, 6, 6);
+	glPopMatrix();
+}
+
+void drawOctopus() {
+	glPushMatrix();                    
+	glTranslatef(0, 4, 0);
+	glColor3f(0.0f, 0.8f, 0.8f); 
+	glutSolidSphere(3, 20, 20);     
+
+	glPushMatrix();                  
+	glTranslatef(1, 0.5, 2.5);    
+	glColor3f(0.0f, 0.0f, 0.0f); 
+	glutSolidSphere(0.5, 10, 10); 
+	glPopMatrix();                   
+
+	glPushMatrix();                  
+	glTranslatef(-1, 0.5, 2.5);  
+	glColor3f(0.0f, 0.0f, 0.0f); 
+	glutSolidSphere(0.5, 10, 10);
+	glPopMatrix();
+
+	for (int i = 0; i < 8; i++) {
+		glPushMatrix();
+		glRotatef(i * 45.0f, 0, 1, 0);   // spread around Y
+		glTranslatef(2.5, -3, 0);        // offset to bottom edge
+		drawTentacle();                   // draw one tentacle here
+		glPopMatrix();
+	}
+
+	glPopMatrix();                   
+}
+
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
@@ -238,6 +274,7 @@ void display(void)
 	}
 
 	drawGround();
+	drawOctopus();
 	glutSwapBuffers();
 	
 }
