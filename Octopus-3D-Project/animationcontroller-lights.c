@@ -135,42 +135,8 @@ void init(void);
 void think(void);
 void initLights(void);
 void drawGround();
-
-void drawTentacle() {
-	glPushMatrix();
-	glColor3f(.0f, 0.8f, 0.8f);
-	glutSolidSphere(1, 6, 6);
-	glPopMatrix();
-}
-
-void drawOctopus() {
-	glPushMatrix();                    
-	glTranslatef(0, 4, 0);
-	glColor3f(0.0f, 0.8f, 0.8f); 
-	glutSolidSphere(3, 20, 20);     
-
-	glPushMatrix();                  
-	glTranslatef(1, 0.5, 2.5);    
-	glColor3f(0.0f, 0.0f, 0.0f); 
-	glutSolidSphere(0.5, 10, 10); 
-	glPopMatrix();                   
-
-	glPushMatrix();                  
-	glTranslatef(-1, 0.5, 2.5);  
-	glColor3f(0.0f, 0.0f, 0.0f); 
-	glutSolidSphere(0.5, 10, 10);
-	glPopMatrix();
-
-	for (int i = 0; i < 8; i++) {
-		glPushMatrix();
-		glRotatef(i * 45.0f, 0, 1, 0);   // spread around Y
-		glTranslatef(2.5, -3, 0);        // offset to bottom edge
-		drawTentacle();                   // draw one tentacle here
-		glPopMatrix();
-	}
-
-	glPopMatrix();                   
-}
+void drawOctopus();
+void drawTentacle();
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -178,23 +144,6 @@ void drawOctopus() {
 
 #define GROUND_SIZE 100
 #define TILE_SIZE 10
-
-void drawGround() {
-	// Draw a ground with a green color with tiles for lighting 
-	glColor3f(0.3f, 0.8f, 0.3f);
-
-	for (int x = -GROUND_SIZE/2; x < GROUND_SIZE/2; x += TILE_SIZE) {
-		for (int z = -GROUND_SIZE/2; z < GROUND_SIZE/2; z += TILE_SIZE) {
-			glBegin(GL_QUADS);
-			glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
-			glVertex3f(x, 0.0f, z);
-			glVertex3f(x, 0.0f, z + TILE_SIZE);
-			glVertex3f(x + TILE_SIZE, 0.0f, z + TILE_SIZE);
-			glVertex3f(x + TILE_SIZE, 0.0f, z);
-			glEnd();
-		}
-	}
-}
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
@@ -614,6 +563,59 @@ void initLights(void)
 	
 	// Enable use of simple GL colours as materials.
 	glEnable(GL_COLOR_MATERIAL);
+}
+
+void drawGround() {
+	// Draw a ground with a green color with tiles for lighting 
+	glColor3f(0.3f, 0.8f, 0.3f);
+
+	for (int x = -GROUND_SIZE / 2; x < GROUND_SIZE / 2; x += TILE_SIZE) {
+		for (int z = -GROUND_SIZE / 2; z < GROUND_SIZE / 2; z += TILE_SIZE) {
+			glBegin(GL_QUADS);
+			glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
+			glVertex3f(x, 0.0f, z);
+			glVertex3f(x, 0.0f, z + TILE_SIZE);
+			glVertex3f(x + TILE_SIZE, 0.0f, z + TILE_SIZE);
+			glVertex3f(x + TILE_SIZE, 0.0f, z);
+			glEnd();
+		}
+	}
+}
+
+void drawTentacle() {
+	glPushMatrix();
+	glColor3f(.0f, 0.8f, 0.8f);
+	glutSolidSphere(1, 6, 6);
+	glPopMatrix();
+}
+
+void drawOctopus() {
+	glPushMatrix();
+	glTranslatef(0, 4, 0);
+	glColor3f(0.0f, 0.8f, 0.8f);
+	glutSolidSphere(3, 20, 20);
+
+	glPushMatrix();
+	glTranslatef(1, 0.5, 2.5);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glutSolidSphere(0.5, 10, 10);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(-1, 0.5, 2.5);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glutSolidSphere(0.5, 10, 10);
+	glPopMatrix();
+
+	for (int i = 0; i < 8; i++) {
+		glPushMatrix();
+		glRotatef(i * 45.0f, 0, 1, 0);   // spread around Y
+		glTranslatef(2.5, -3, 0);        // offset to bottom edge
+		drawTentacle();                   // draw one tentacle here
+		glPopMatrix();
+	}
+
+	glPopMatrix();
 }
 
 /****************************************2026****************************************/
