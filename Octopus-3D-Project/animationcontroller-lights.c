@@ -144,6 +144,13 @@ void drawTentacle();
 
 #define GROUND_SIZE 100
 #define TILE_SIZE 10
+#define BODY_RADIUS 3.0f
+#define EYE_RADIUS 0.5f
+#define	TENTACLE_RADIUS 1.0f
+#define TENTACLE_SPREAD 2.5f
+
+GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
+
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
@@ -195,7 +202,6 @@ void main(int argc, char **argv)
  */
 void display(void)
 {
-	GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 	/*
 		TEMPLATE: REPLACE THIS COMMENT WITH YOUR DRAWING CODE
 		
@@ -540,7 +546,6 @@ void initLights(void)
 {
 	// Simple lighting setup
 	GLfloat globalAmbient[] = { 0.4f, 0.4f, 0.4f, 1 };
-	GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 	GLfloat ambientLight[] = { 0, 0, 0, 1 };
 	GLfloat diffuseLight[] = { 1, 1, 1, 1 };
 	GLfloat specularLight[] = { 1, 1, 1, 1 };
@@ -584,33 +589,33 @@ void drawGround() {
 
 void drawTentacle() {
 	glPushMatrix();
-	glColor3f(.0f, 0.8f, 0.8f);
+	glColor3f(0.0f, 0.8f, 0.8f);
 	glutSolidSphere(1, 6, 6);
 	glPopMatrix();
 }
 
 void drawOctopus() {
 	glPushMatrix();
-	glTranslatef(0, 4, 0);
+	glTranslatef(0, BODY_RADIUS + TENTACLE_RADIUS, 0);
 	glColor3f(0.0f, 0.8f, 0.8f);
-	glutSolidSphere(3, 20, 20);
+	glutSolidSphere(BODY_RADIUS, 20, 20);
 
 	glPushMatrix();
-	glTranslatef(1, 0.5, 2.5);
+	glTranslatef(1, 0.5, BODY_RADIUS * 0.83f);
 	glColor3f(0.0f, 0.0f, 0.0f);
-	glutSolidSphere(0.5, 10, 10);
+	glutSolidSphere(EYE_RADIUS, 10, 10);
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(-1, 0.5, 2.5);
+	glTranslatef(-1, 0.5, BODY_RADIUS * 0.83f);
 	glColor3f(0.0f, 0.0f, 0.0f);
-	glutSolidSphere(0.5, 10, 10);
+	glutSolidSphere(EYE_RADIUS, 10, 10);
 	glPopMatrix();
 
 	for (int i = 0; i < 8; i++) {
 		glPushMatrix();
 		glRotatef(i * 45.0f, 0, 1, 0);   // spread around Y
-		glTranslatef(2.5, -3, 0);        // offset to bottom edge
+		glTranslatef(TENTACLE_SPREAD, -BODY_RADIUS, 0);        // offset to bottom edge
 		drawTentacle();                   // draw one tentacle here
 		glPopMatrix();
 	}
