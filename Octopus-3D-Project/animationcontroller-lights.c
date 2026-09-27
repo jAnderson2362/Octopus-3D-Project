@@ -176,25 +176,21 @@ void drawOctopus() {
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
 
-void drawGround() {
-	// Draw a simple ground plane
-	glColor3f(0.3f, 0.8f, 0.3f); // Green color
-	glBegin(GL_QUADS);
-	glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
-	glVertex3f(-50.0f, 0.0f, -50.0f);
-	glVertex3f(-50.0f, 0.0f, 50.0f);
-	glVertex3f(50.0f, 0.0f, 50.0f);
-	glVertex3f(50.0f, 0.0f, -50.0f);
-	glEnd();
+#define GROUND_SIZE 100
+#define TILE_SIZE 10
 
-	for (int x = -50; x < 50; x += 10) {
-		for (int z = -50; z < 50; z += 10) {
+void drawGround() {
+	// Draw a ground with a green color with tiles for lighting 
+	glColor3f(0.3f, 0.8f, 0.3f);
+
+	for (int x = -GROUND_SIZE/2; x < GROUND_SIZE/2; x += TILE_SIZE) {
+		for (int z = -GROUND_SIZE/2; z < GROUND_SIZE/2; z += TILE_SIZE) {
 			glBegin(GL_QUADS);
 			glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
 			glVertex3f(x, 0.0f, z);
-			glVertex3f(x, 0.0f, z + 10);
-			glVertex3f(x + 10, 0.0f, z + 10);
-			glVertex3f(x + 10, 0.0f, z);
+			glVertex3f(x, 0.0f, z + TILE_SIZE);
+			glVertex3f(x + TILE_SIZE, 0.0f, z + TILE_SIZE);
+			glVertex3f(x + TILE_SIZE, 0.0f, z);
 			glEnd();
 		}
 	}
