@@ -137,6 +137,7 @@ void initLights(void);
 void drawGround();
 void drawOctopus();
 void drawTentacle();
+void drawPropeller();
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -148,6 +149,12 @@ void drawTentacle();
 #define EYE_RADIUS 0.5f
 #define	TENTACLE_RADIUS 1.0f
 #define TENTACLE_SPREAD 2.5f
+#define PROPELLER_SIZE 1.5f
+#define BEAK_RADIUS 0.5f
+#define BEAK_LENGTH 0.8f
+#define EYE_OFFSET_X 1.0f
+#define EYE_OFFSET_Y 0.5f
+#define EYE_DEPTH 0.83f
 
 GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 
@@ -590,8 +597,29 @@ void drawGround() {
 void drawTentacle() {
 	glPushMatrix();
 	glColor3f(0.0f, 0.8f, 0.8f);
-	glutSolidSphere(1, 6, 6);
+	glutSolidSphere(TENTACLE_RADIUS, 6, 6);
 	glPopMatrix();
+}
+
+void drawPropeller() {
+	// Two blades meeting at the origin, flat in the XY plane so a Z rotation spins it in place.
+	GLfloat vertices[] = {
+		// Top blade
+		0.0f, 0.0f, 0.0f,
+		-PROPELLER_SIZE / 2, PROPELLER_SIZE, 0.0f,
+		PROPELLER_SIZE / 2, PROPELLER_SIZE, 0.0f,
+		// Bottom blade
+		0.0f, 0.0f, 0.0f,
+		PROPELLER_SIZE / 2, -PROPELLER_SIZE, 0.0f,
+		-PROPELLER_SIZE / 2, -PROPELLER_SIZE, 0.0f
+	};
+
+	glColor3f(1.0f, 0.5f, 0.0f);
+	glNormal3f(0.0f, 0.0f, -1.0f); // Backward normal
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vertices);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 void drawOctopus() {
@@ -601,15 +629,29 @@ void drawOctopus() {
 	glutSolidSphere(BODY_RADIUS, 20, 20);
 
 	glPushMatrix();
-	glTranslatef(1, 0.5, BODY_RADIUS * 0.83f);
+	glTranslatef(EYE_OFFSET_X, EYE_OFFSET_Y, BODY_RADIUS * EYE_DEPTH);
 	glColor3f(0.0f, 0.0f, 0.0f);
 	glutSolidSphere(EYE_RADIUS, 10, 10);
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(-1, 0.5, BODY_RADIUS * 0.83f);
+	glTranslatef(-EYE_OFFSET_X, EYE_OFFSET_Y, BODY_RADIUS * EYE_DEPTH);
 	glColor3f(0.0f, 0.0f, 0.0f);
 	glutSolidSphere(EYE_RADIUS, 10, 10);
+	glPopMatrix();
+
+	// Propeller on the back (-Z)
+	glPushMatrix();
+	glTranslatef(0, 0, -BODY_RADIUS);
+	drawPropeller();
+	glPopMatrix();
+
+	// Beak on the underside, pointing down
+	glPushMatrix();
+	glTranslatef(0, -BODY_RADIUS, 0);
+	glRotatef(90.0f, 1, 0, 0);
+	glColor3f(1.0f, 0.6f, 0.0f);
+	glutSolidCone(BEAK_RADIUS, BEAK_LENGTH, 10, 10);
 	glPopMatrix();
 
 	for (int i = 0; i < 8; i++) {
