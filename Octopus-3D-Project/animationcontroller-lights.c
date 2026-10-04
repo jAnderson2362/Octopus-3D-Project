@@ -155,6 +155,12 @@ void drawPropeller();
 #define EYE_OFFSET_X 1.0f
 #define EYE_OFFSET_Y 0.5f
 #define EYE_DEPTH 0.83f
+#define PROPELLER_SPEED_RPM 60.0f
+#define FEET_SPEED_RPM 10.0f
+#define RPM_TO_DEG_PER_SEC (360.0f / 60.0f)
+
+float propellerAngle = 0.0f;
+float feetAngle = 0.0f;
 
 GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 
@@ -484,6 +490,15 @@ void init(void)
 */
 void think(void)
 {
+	propellerAngle += PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+	if (propellerAngle >= 360.0f) {
+		propellerAngle -= 360.0f;
+	}
+
+	feetAngle -= FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+	if (feetAngle < 0.0f) {
+		feetAngle += 360.0f;
+	}
 	/*
 		TEMPLATE: REPLACE THIS COMMENT WITH YOUR ANIMATION/SIMULATION CODE
 
@@ -643,6 +658,7 @@ void drawOctopus() {
 	// Propeller on the back (-Z)
 	glPushMatrix();
 	glTranslatef(0, 0, -BODY_RADIUS);
+	glRotatef(propellerAngle, 0, 0, 1);
 	drawPropeller();
 	glPopMatrix();
 
@@ -656,7 +672,7 @@ void drawOctopus() {
 
 	for (int i = 0; i < 8; i++) {
 		glPushMatrix();
-		glRotatef(i * 45.0f, 0, 1, 0);   // spread around Y
+		glRotatef(feetAngle + i * 45.0f, 0, 1, 0);   // spread around Y
 		glTranslatef(TENTACLE_SPREAD, -BODY_RADIUS, 0);        // offset to bottom edge
 		drawTentacle();                   // draw one tentacle here
 		glPopMatrix();
