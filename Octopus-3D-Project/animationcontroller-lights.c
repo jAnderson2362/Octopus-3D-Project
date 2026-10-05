@@ -105,6 +105,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_MOVE_LEFT		'a'
 #define KEY_MOVE_RIGHT		'd'
 #define KEY_RENDER_FILL		'l'
+#define KEY_MOTOR_TOGGLE	' ' //spacebar
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -158,9 +159,27 @@ void drawPropeller();
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 10.0f
 #define RPM_TO_DEG_PER_SEC (360.0f / 60.0f)
+#define OCTOPUS_MIN_Y (BODY_RADIUS + TENTACLE_RADIUS) // Lowest centre height before the feet touch the seabed
+#define DEG_TO_RAD (3.14159265f / 180.0f)
 
+#define MOVE_SPEED_MPS 5.0f              // Surge, sway and heave speed, metres per second
+#define TURN_SPEED_DEG_PER_SEC 90.0f     // Yaw speed, degrees per second
+
+// Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
 float feetAngle = 0.0f;
+
+// Octopus position (metres) and heading (degrees around Y, 0 = facing +Z).
+float octopusX = 0.0f;
+float octopusY = OCTOPUS_MIN_Y;
+float octopusZ = 0.0f;
+float octopusHeading = 0.0f;
+
+// Motor on (1) or off (0). Feet, propeller and movement only run when on. Default off.
+int motorEnabled = 0;
+
+// Whether w was held last frame, so think() can detect the moment it's pressed.
+keystate_t previousForwardKeyState = KEYSTATE_UP;
 
 GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 
@@ -300,6 +319,9 @@ void keyPressed(unsigned char key, int x, int y)
 	*/
 	case KEY_RENDER_FILL:
 		renderFillEnabled = !renderFillEnabled;
+		break;
+	case KEY_MOTOR_TOGGLE:
+		motorEnabled = !motorEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -490,14 +512,23 @@ void init(void)
 */
 void think(void)
 {
-	propellerAngle += PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
-	if (propellerAngle >= 360.0f) {
-		propellerAngle -= 360.0f;
+	// w switches the motor on/off (per spec). Its handler is in a DON'T CHANGE section,
+	// so detect the moment it goes from up to down here instead.
+	if (motionKeyStates.MoveForward == KEYSTATE_DOWN && previousForwardKeyState == KEYSTATE_UP) {
+		motorEnabled = !motorEnabled;
 	}
+	previousForwardKeyState = motionKeyStates.MoveForward;
 
-	feetAngle -= FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
-	if (feetAngle < 0.0f) {
-		feetAngle += 360.0f;
+	if (motorEnabled) {
+		propellerAngle += PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+		if (propellerAngle >= 360.0f) {
+			propellerAngle -= 360.0f;
+		}
+
+		feetAngle -= FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+		if (feetAngle < 0.0f) {
+			feetAngle += 360.0f;
+		}
 	}
 	/*
 		TEMPLATE: REPLACE THIS COMMENT WITH YOUR ANIMATION/SIMULATION CODE
@@ -544,16 +575,42 @@ void think(void)
 		object respond to keyboard input.
 	*/
 	if (keyboardMotion.Yaw != MOTION_NONE) {
-		/* TEMPLATE: Turn your object right (clockwise) if .Yaw < 0, or left (anticlockwise) if .Yaw > 0 */
+		// Turn left (Yaw > 0) or right (Yaw < 0), keeping the heading within 0 to 360.
+		if (motorEnabled) {
+			octopusHeading += TURN_SPEED_DEG_PER_SEC * keyboardMotion.Yaw * FRAME_TIME_SEC;
+			if (octopusHeading >= 360.0f) {
+				octopusHeading -= 360.0f;
+			}
+			if (octopusHeading < 0.0f) {
+				octopusHeading += 360.0f;
+			}
+		}
 	}
-	if (keyboardMotion.Surge != MOTION_NONE) {
-		/* TEMPLATE: Move your object backward if .Surge < 0, or forward if .Surge > 0 */
+
+	// Surge: w/spacebar switch forward motion on and off, so it swims forward whenever the motor is on.
+	if (motorEnabled) {
+		float headingRad = octopusHeading * DEG_TO_RAD;
+		octopusX += sinf(headingRad) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
+		octopusZ += cosf(headingRad) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
 	}
+
 	if (keyboardMotion.Sway != MOTION_NONE) {
-		/* TEMPLATE: Move (strafe) your object left if .Sway < 0, or right if .Sway > 0 */
+		// Strafe right (Sway > 0) or left (Sway < 0), at 90 degrees to the heading.
+		if (motorEnabled) {
+			float headingRad = octopusHeading * DEG_TO_RAD;
+			octopusX -= cosf(headingRad) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
+			octopusZ += sinf(headingRad) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
+		}
 	}
+
 	if (keyboardMotion.Heave != MOTION_NONE) {
-		/* TEMPLATE: Move your object down if .Heave < 0, or up if .Heave > 0 */
+		// Move up (Heave > 0) or down (Heave < 0), never below the seabed.
+		if (motorEnabled) {
+			octopusY += MOVE_SPEED_MPS * keyboardMotion.Heave * FRAME_TIME_SEC;
+			if (octopusY < OCTOPUS_MIN_Y) {
+				octopusY = OCTOPUS_MIN_Y;
+			}
+		}
 	}
 }
 
@@ -639,7 +696,8 @@ void drawPropeller() {
 
 void drawOctopus() {
 	glPushMatrix();
-	glTranslatef(0, BODY_RADIUS + TENTACLE_RADIUS, 0);
+	glTranslatef(octopusX, octopusY, octopusZ);
+	glRotatef(octopusHeading, 0, 1, 0);
 	glColor3f(0.0f, 0.8f, 0.8f);
 	glutSolidSphere(BODY_RADIUS, 20, 20);
 
