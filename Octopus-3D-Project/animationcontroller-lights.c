@@ -106,6 +106,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_MOVE_RIGHT		'd'
 #define KEY_RENDER_FILL		'l'
 #define KEY_MOTOR_TOGGLE	' ' //spacebar
+#define KEY_CAMERA_TOGGLE	'c'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -139,6 +140,8 @@ void drawGround();
 void drawOctopus();
 void drawTentacle();
 void drawPropeller();
+float getForwardX(float headingDeg);
+float getForwardZ(float headingDeg);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -165,6 +168,10 @@ void drawPropeller();
 #define MOVE_SPEED_MPS 5.0f              // Surge, sway and heave speed, metres per second
 #define TURN_SPEED_DEG_PER_SEC 90.0f     // Yaw speed, degrees per second
 
+#define CAMERA_DISTANCE_BEHIND 25.0f     // Metres behind the octopus
+#define CAMERA_HEIGHT_ABOVE 8.0f         // Metres above the octopus centre
+#define CAMERA_FOLLOW_RATE 0.0f          // How quickly the camera swings behind the octopus (per second)
+
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
 float feetAngle = 0.0f;
@@ -180,6 +187,12 @@ int motorEnabled = 0;
 
 // Whether w was held last frame, so think() can detect the moment it's pressed.
 keystate_t previousForwardKeyState = KEYSTATE_UP;
+
+// Camera's own heading in degrees. Eases towards octopusHeading so turns are visible.
+float cameraHeading = 0.0f;
+
+// Camera view: behind the octopus (0) or in front looking at its face (1). Default behind.
+int cameraFrontView = 0;
 
 GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
 
@@ -246,7 +259,14 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(0, 20, 40, 0, 0, 0, 0, 1, 0);
+	// A negative distance puts the camera in front of the octopus, looking back at its face.
+	float cameraDistance = cameraFrontView ? -CAMERA_DISTANCE_BEHIND : CAMERA_DISTANCE_BEHIND;
+	// Tracking camera: behind and above the octopus, looking at its centre.
+	gluLookAt(octopusX - getForwardX(cameraHeading) * cameraDistance,   // Eye X
+		octopusY + CAMERA_HEIGHT_ABOVE,                                  // Eye Y
+		octopusZ - getForwardZ(cameraHeading) * cameraDistance,          // Eye Z
+		octopusX, octopusY, octopusZ,                                    // Target: the octopus
+		0, 1, 0);                                                        // Up
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
 	if (renderFillEnabled) {
@@ -322,6 +342,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_MOTOR_TOGGLE:
 		motorEnabled = !motorEnabled;
+		break;
+	case KEY_CAMERA_TOGGLE:
+		cameraFrontView = !cameraFrontView;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -575,31 +598,27 @@ void think(void)
 		object respond to keyboard input.
 	*/
 	if (keyboardMotion.Yaw != MOTION_NONE) {
-		// Turn left (Yaw > 0) or right (Yaw < 0), keeping the heading within 0 to 360.
-		if (motorEnabled) {
-			octopusHeading += TURN_SPEED_DEG_PER_SEC * keyboardMotion.Yaw * FRAME_TIME_SEC;
-			if (octopusHeading >= 360.0f) {
-				octopusHeading -= 360.0f;
-			}
-			if (octopusHeading < 0.0f) {
-				octopusHeading += 360.0f;
-			}
+		// Turn left (Yaw > 0) or right (Yaw < 0), keeping the heading within 0 to 360. Allowed with the motor off, as in the demo.
+		octopusHeading += TURN_SPEED_DEG_PER_SEC * keyboardMotion.Yaw * FRAME_TIME_SEC;
+		if (octopusHeading >= 360.0f) {
+			octopusHeading -= 360.0f;
+		}
+		if (octopusHeading < 0.0f) {
+			octopusHeading += 360.0f;
 		}
 	}
 
 	// Surge: w/spacebar switch forward motion on and off, so it swims forward whenever the motor is on.
 	if (motorEnabled) {
-		float headingRad = octopusHeading * DEG_TO_RAD;
-		octopusX += sinf(headingRad) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
-		octopusZ += cosf(headingRad) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
+		octopusX += getForwardX(octopusHeading) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
+		octopusZ += getForwardZ(octopusHeading) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
 	}
 
 	if (keyboardMotion.Sway != MOTION_NONE) {
-		// Strafe right (Sway > 0) or left (Sway < 0), at 90 degrees to the heading.
+		// Strafe right (Sway > 0) or left (Sway < 0). Right is forward swapped with one sign flipped: (-fZ, fX).
 		if (motorEnabled) {
-			float headingRad = octopusHeading * DEG_TO_RAD;
-			octopusX -= cosf(headingRad) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
-			octopusZ += sinf(headingRad) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
+			octopusX -= getForwardZ(octopusHeading) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
+			octopusZ += getForwardX(octopusHeading) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
 		}
 	}
 
@@ -611,6 +630,22 @@ void think(void)
 				octopusY = OCTOPUS_MIN_Y;
 			}
 		}
+	}
+
+	// Ease the camera heading towards the octopus heading, taking the shortest way round.
+	float headingDifference = octopusHeading - cameraHeading;
+	if (headingDifference > 180.0f) {
+		headingDifference -= 360.0f;
+	}
+	if (headingDifference < -180.0f) {
+		headingDifference += 360.0f;
+	}
+	cameraHeading += headingDifference * CAMERA_FOLLOW_RATE * FRAME_TIME_SEC;
+	if (cameraHeading >= 360.0f) {
+		cameraHeading -= 360.0f;
+	}
+	if (cameraHeading < 0.0f) {
+		cameraHeading += 360.0f;
 	}
 }
 
@@ -737,6 +772,18 @@ void drawOctopus() {
 	}
 
 	glPopMatrix();
+}
+
+/*
+	Unit vector on the ground (X and Z) for a heading in degrees.
+	Heading 0 faces +Z, heading 90 faces +X. Converts degrees to radians for sinf/cosf.
+*/
+float getForwardX(float headingDeg) {
+	return sinf(headingDeg * DEG_TO_RAD);
+}
+
+float getForwardZ(float headingDeg) {
+	return cosf(headingDeg * DEG_TO_RAD);
 }
 
 /****************************************2026****************************************/
