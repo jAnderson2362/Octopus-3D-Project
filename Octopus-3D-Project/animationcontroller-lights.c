@@ -170,7 +170,7 @@ float getForwardZ(float headingDeg);
 
 #define CAMERA_DISTANCE_BEHIND 25.0f     // Metres behind the octopus
 #define CAMERA_HEIGHT_ABOVE 8.0f         // Metres above the octopus centre
-#define CAMERA_FOLLOW_RATE 0.0f          // How quickly the camera swings behind the octopus (per second)
+#define CAMERA_FOLLOW_RATE 3.0f          // How quickly the camera swings behind the octopus (per second)
 
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
