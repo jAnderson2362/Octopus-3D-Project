@@ -153,6 +153,7 @@ float getForwardZ(float headingDeg);
 #define EYE_RADIUS 0.5f
 #define	TENTACLE_RADIUS 1.0f
 #define TENTACLE_SPREAD 2.5f
+#define TENTACLE_COUNT 8
 #define PROPELLER_SIZE 1.5f
 #define BEAK_RADIUS 0.5f
 #define BEAK_LENGTH 0.8f
@@ -160,7 +161,7 @@ float getForwardZ(float headingDeg);
 #define EYE_OFFSET_Y 0.5f
 #define EYE_DEPTH 0.83f
 #define PROPELLER_SPEED_RPM 60.0f
-#define FEET_SPEED_RPM 10.0f
+#define FEET_SPEED_RPM 40.0f
 #define RPM_TO_DEG_PER_SEC (360.0f / 60.0f)
 #define OCTOPUS_MIN_Y (BODY_RADIUS + TENTACLE_RADIUS) // Lowest centre height before the feet touch the seabed
 #define DEG_TO_RAD (3.14159265f / 180.0f)
@@ -290,7 +291,7 @@ void reshape(int width, int h)
 	glViewport(0, 0, width, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60, (GLfloat)width / (GLfloat)h, 1.0, 100.0);
+	gluPerspective(60, (GLfloat)width / (GLfloat)h, 1.0, 200.0);
 	glMatrixMode(GL_MODELVIEW);
 }
 
@@ -542,12 +543,16 @@ void think(void)
 	}
 	previousForwardKeyState = motionKeyStates.MoveForward;
 
+	// Propeller only spins when the motor is on (forward thrust).
 	if (motorEnabled) {
 		propellerAngle += PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
 		if (propellerAngle >= 360.0f) {
 			propellerAngle -= 360.0f;
 		}
+	}
 
+	// Feet spin when the motor is on, or when turning on the spot with the motor off.
+	if (motorEnabled || keyboardMotion.Yaw != MOTION_NONE) {
 		feetAngle -= FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
 		if (feetAngle < 0.0f) {
 			feetAngle += 360.0f;
@@ -598,7 +603,8 @@ void think(void)
 		object respond to keyboard input.
 	*/
 	if (keyboardMotion.Yaw != MOTION_NONE) {
-		// Turn left (Yaw > 0) or right (Yaw < 0), keeping the heading within 0 to 360. Allowed with the motor off, as in the demo.
+		/* TEMPLATE: Turn your object right (clockwise) if .Yaw < 0, or left (anticlockwise) if .Yaw > 0 */
+		// Allowed with the motor off, as in the demo. Heading kept within 0 to 360.
 		octopusHeading += TURN_SPEED_DEG_PER_SEC * keyboardMotion.Yaw * FRAME_TIME_SEC;
 		if (octopusHeading >= 360.0f) {
 			octopusHeading -= 360.0f;
@@ -607,23 +613,28 @@ void think(void)
 			octopusHeading += 360.0f;
 		}
 	}
+	if (keyboardMotion.Surge != MOTION_NONE) {
+		/* TEMPLATE: Move your object backward if .Surge < 0, or forward if .Surge > 0 */
+		// Not used: per the spec, w toggles forward motion on/off instead of being held (see below).
+	}
 
 	// Surge: w/spacebar switch forward motion on and off, so it swims forward whenever the motor is on.
 	if (motorEnabled) {
-		octopusX += getForwardX(octopusHeading) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
-		octopusZ += getForwardZ(octopusHeading) * MOVE_SPEED_MPS * MOTION_FORWARD * FRAME_TIME_SEC;
+		octopusX += getForwardX(octopusHeading) * MOVE_SPEED_MPS * FRAME_TIME_SEC;
+		octopusZ += getForwardZ(octopusHeading) * MOVE_SPEED_MPS * FRAME_TIME_SEC;
 	}
 
 	if (keyboardMotion.Sway != MOTION_NONE) {
-		// Strafe right (Sway > 0) or left (Sway < 0). Right is forward swapped with one sign flipped: (-fZ, fX).
+		/* TEMPLATE: Move (strafe) your object left if .Sway < 0, or right if .Sway > 0 */
+		// Right is forward swapped with one sign flipped: (-fZ, fX).
 		if (motorEnabled) {
 			octopusX -= getForwardZ(octopusHeading) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
 			octopusZ += getForwardX(octopusHeading) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
 		}
 	}
-
 	if (keyboardMotion.Heave != MOTION_NONE) {
-		// Move up (Heave > 0) or down (Heave < 0), never below the seabed.
+		/* TEMPLATE: Move your object down if .Heave < 0, or up if .Heave > 0 */
+		// Never below the seabed.
 		if (motorEnabled) {
 			octopusY += MOVE_SPEED_MPS * keyboardMotion.Heave * FRAME_TIME_SEC;
 			if (octopusY < OCTOPUS_MIN_Y) {
@@ -763,9 +774,9 @@ void drawOctopus() {
 	glutSolidCone(BEAK_RADIUS, BEAK_LENGTH, 10, 10);
 	glPopMatrix();
 
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < TENTACLE_COUNT; i++) {
 		glPushMatrix();
-		glRotatef(feetAngle + i * 45.0f, 0, 1, 0);   // spread around Y
+		glRotatef(feetAngle + i * (360.0f / TENTACLE_COUNT), 0, 1, 0);   // spread evenly around Y
 		glTranslatef(TENTACLE_SPREAD, -BODY_RADIUS, 0);        // offset to bottom edge
 		drawTentacle();                   // draw one tentacle here
 		glPopMatrix();
