@@ -142,6 +142,7 @@ void drawTentacle();
 void drawPropeller();
 float getForwardX(float headingDeg);
 float getForwardZ(float headingDeg);
+void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLfloat shininess);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -172,6 +173,11 @@ float getForwardZ(float headingDeg);
 #define CAMERA_DISTANCE_BEHIND 25.0f     // Metres behind the octopus
 #define CAMERA_HEIGHT_ABOVE 8.0f         // Metres above the octopus centre
 #define CAMERA_FOLLOW_RATE 3.0f          // How quickly the camera swings behind the octopus (per second)
+
+#define WET_SPECULAR 0.8f                // Octopus: strong highlights, looks wet
+#define WET_SHININESS 60.0f              // Octopus: small, sharp highlights (0 to 128)
+#define MATTE_SPECULAR 0.0f              // Seabed, beak, propeller: no highlights
+#define MATTE_SHININESS 0.0f
 
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
@@ -551,9 +557,18 @@ void think(void)
 		}
 	}
 
-	// Feet spin when the motor is on, or when turning on the spot with the motor off.
+	// Feet spin when the motor is on or when turning. While turning they spin the same way as the turn,
+	// otherwise clockwise (opposite to the propeller).
 	if (motorEnabled || keyboardMotion.Yaw != MOTION_NONE) {
-		feetAngle -= FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+		int feetDirection = MOTION_CLOCKWISE;
+		if (keyboardMotion.Yaw != MOTION_NONE) {
+			feetDirection = keyboardMotion.Yaw;
+		}
+
+		feetAngle += FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * feetDirection * FRAME_TIME_SEC;
+		if (feetAngle >= 360.0f) {
+			feetAngle -= 360.0f;
+		}
 		if (feetAngle < 0.0f) {
 			feetAngle += 360.0f;
 		}
@@ -691,13 +706,13 @@ void initLights(void)
 	// Make GL normalize the normal vectors we supply.
 	glEnable(GL_NORMALIZE);
 	
-	// Enable use of simple GL colours as materials.
-	glEnable(GL_COLOR_MATERIAL);
+	// Light both sides of flat shapes (the propeller), not just the front.
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 }
 
 void drawGround() {
-	// Draw a ground with a green color with tiles for lighting 
-	glColor3f(0.3f, 0.8f, 0.3f);
+	// Matte mossy sand seabed, drawn as tiles so lighting is calculated across the whole ground.
+	setMaterial(0.66f, 0.70f, 0.46f, MATTE_SPECULAR, MATTE_SHININESS);
 
 	for (int x = -GROUND_SIZE / 2; x < GROUND_SIZE / 2; x += TILE_SIZE) {
 		for (int z = -GROUND_SIZE / 2; z < GROUND_SIZE / 2; z += TILE_SIZE) {
@@ -714,7 +729,7 @@ void drawGround() {
 
 void drawTentacle() {
 	glPushMatrix();
-	glColor3f(0.0f, 0.8f, 0.8f);
+	setMaterial(0.0f, 0.8f, 0.8f, WET_SPECULAR, WET_SHININESS);
 	glutSolidSphere(TENTACLE_RADIUS, 6, 6);
 	glPopMatrix();
 }
@@ -732,7 +747,7 @@ void drawPropeller() {
 		-PROPELLER_SIZE / 2, -PROPELLER_SIZE, 0.0f
 	};
 
-	glColor3f(1.0f, 0.5f, 0.0f);
+	setMaterial(1.0f, 0.5f, 0.0f, MATTE_SPECULAR, MATTE_SHININESS);
 	glNormal3f(0.0f, 0.0f, -1.0f); // Backward normal
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vertices);
@@ -744,18 +759,18 @@ void drawOctopus() {
 	glPushMatrix();
 	glTranslatef(octopusX, octopusY, octopusZ);
 	glRotatef(octopusHeading, 0, 1, 0);
-	glColor3f(0.0f, 0.8f, 0.8f);
+	setMaterial(0.0f, 0.8f, 0.8f, WET_SPECULAR, WET_SHININESS);
 	glutSolidSphere(BODY_RADIUS, 20, 20);
 
 	glPushMatrix();
 	glTranslatef(EYE_OFFSET_X, EYE_OFFSET_Y, BODY_RADIUS * EYE_DEPTH);
-	glColor3f(0.0f, 0.0f, 0.0f);
+	setMaterial(0.0f, 0.0f, 0.0f, WET_SPECULAR, WET_SHININESS);
 	glutSolidSphere(EYE_RADIUS, 10, 10);
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatef(-EYE_OFFSET_X, EYE_OFFSET_Y, BODY_RADIUS * EYE_DEPTH);
-	glColor3f(0.0f, 0.0f, 0.0f);
+	setMaterial(0.0f, 0.0f, 0.0f, WET_SPECULAR, WET_SHININESS);
 	glutSolidSphere(EYE_RADIUS, 10, 10);
 	glPopMatrix();
 
@@ -770,7 +785,7 @@ void drawOctopus() {
 	glPushMatrix();
 	glTranslatef(0, -BODY_RADIUS, 0);
 	glRotatef(90.0f, 1, 0, 0);
-	glColor3f(1.0f, 0.6f, 0.0f);
+	setMaterial(1.0f, 0.6f, 0.0f, MATTE_SPECULAR, MATTE_SHININESS);
 	glutSolidCone(BEAK_RADIUS, BEAK_LENGTH, 10, 10);
 	glPopMatrix();
 
@@ -795,6 +810,20 @@ float getForwardX(float headingDeg) {
 
 float getForwardZ(float headingDeg) {
 	return cosf(headingDeg * DEG_TO_RAD);
+}
+
+/*
+	Set the material for everything drawn after this call.
+	The colour is used for both ambient and diffuse. Specular is a grey level (0 to 1)
+	and shininess controls how tight the highlight is (0 to 128).
+*/
+void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLfloat shininess) {
+	GLfloat colour[] = { red, green, blue, 1.0f };
+	GLfloat specularColour[] = { specular, specular, specular, 1.0f };
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, colour);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specularColour);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
 }
 
 /****************************************2026****************************************/
