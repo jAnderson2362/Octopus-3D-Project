@@ -107,6 +107,8 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_RENDER_FILL		'l'
 #define KEY_MOTOR_TOGGLE	' ' //spacebar
 #define KEY_CAMERA_TOGGLE	'c'
+#define KEY_MAIN_LIGHT_TOGGLE	'1'
+#define KEY_SPOTLIGHT_TOGGLE	'2'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -143,13 +145,14 @@ void drawPropeller();
 float getForwardX(float headingDeg);
 float getForwardZ(float headingDeg);
 void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLfloat shininess);
+void drawLights(void);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
 
 #define GROUND_SIZE 100
-#define TILE_SIZE 10
+#define TILE_SIZE 1
 #define BODY_RADIUS 3.0f
 #define EYE_RADIUS 0.5f
 #define	TENTACLE_RADIUS 1.0f
@@ -179,6 +182,13 @@ void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLf
 #define MATTE_SPECULAR 0.0f              // Seabed, beak, propeller: no highlights
 #define MATTE_SHININESS 0.0f
 
+#define SPOTLIGHT_HEIGHT 7.0f                    // Metres above the octopus centre
+#define SPOTLIGHT_FORWARD 2.0f                   // Metres in front of the octopus centre
+#define SPOTLIGHT_CUTOFF_DEG 40.0f               // Half the cone angle
+#define SPOTLIGHT_EXPONENT 5.0f                  // How focused the beam is (higher = brighter centre, softer edge)
+#define SPOTLIGHT_SWEEP_ANGLE 30.0f              // How far the beam swings to each side, degrees
+#define SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC 90.0f  // Sweep cycle speed (360 = one full left-right-left cycle per second)
+
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
 float feetAngle = 0.0f;
@@ -201,8 +211,16 @@ float cameraHeading = 0.0f;
 // Camera view: behind the octopus (0) or in front looking at its face (1). Default behind.
 int cameraFrontView = 0;
 
-GLfloat lightPosition[] = { 5.0f, 20.0f, 5.0f, 1.0f };
+// Main light: directional (w = 0), shining down like sunlight through water.
+// For a directional light, x, y, z point TOWARDS the light: here from above, slightly to one side and in front.
+GLfloat mainLightDirection[] = { 0.3f, 1.0f, 0.4f, 0.0f };
 
+// Spotlight sweep phase in degrees. think() advances it, and drawLights() turns it into a side-to-side swing.
+float spotlightSweepPhase = 0.0f;
+
+// Light switches: on (1) or off (0). Both start on.
+int mainLightEnabled = 1;
+int spotlightEnabled = 1;
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
@@ -274,7 +292,7 @@ void display(void)
 		octopusZ - getForwardZ(cameraHeading) * cameraDistance,          // Eye Z
 		octopusX, octopusY, octopusZ,                                    // Target: the octopus
 		0, 1, 0);                                                        // Up
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+	drawLights();
 
 	if (renderFillEnabled) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -352,6 +370,12 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_CAMERA_TOGGLE:
 		cameraFrontView = !cameraFrontView;
+		break;
+	case KEY_MAIN_LIGHT_TOGGLE:
+		mainLightEnabled = !mainLightEnabled;
+		break;
+	case KEY_SPOTLIGHT_TOGGLE:
+		spotlightEnabled = !spotlightEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -673,6 +697,12 @@ void think(void)
 	if (cameraHeading < 0.0f) {
 		cameraHeading += 360.0f;
 	}
+
+	// Spotlight sweep: always running, so the beam animates even when the octopus is parked.
+	spotlightSweepPhase += SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
+	if (spotlightSweepPhase >= 360.0f) {
+		spotlightSweepPhase -= 360.0f;
+	}
 }
 
 /*
@@ -685,26 +715,39 @@ void think(void)
 void initLights(void)
 {
 	// Simple lighting setup
-	GLfloat globalAmbient[] = { 0.4f, 0.4f, 0.4f, 1 };
+	GLfloat globalAmbient[] = { 0.10f, 0.12f, 0.18f, 1 };   // Dim and blue, so the spotlight stands out
 	GLfloat ambientLight[] = { 0, 0, 0, 1 };
-	GLfloat diffuseLight[] = { 1, 1, 1, 1 };
-	GLfloat specularLight[] = { 1, 1, 1, 1 };
+	GLfloat diffuseLight[] = { 0.55f, 0.75f, 0.85f, 1 };     // Blue-green, like daylight filtered through sea water
+	GLfloat specularLight[] = { 0.7f, 0.85f, 0.9f, 1 };      // Slightly blue highlights
+	GLfloat spotDiffuse[] = { 1.0f, 0.9f, 0.6f, 1 };         // Warm yellow beam, stands out against the blue water
+	GLfloat spotSpecular[] = { 1.0f, 1.0f, 0.9f, 1 };
 	
 	// Configure global ambient lighting.
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbient);
 	
 	// Configure Light 0.
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+	glLightfv(GL_LIGHT0, GL_POSITION, mainLightDirection);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+
+	// Configure Light 1: the sweeping spotlight. Its position and direction are set every frame in drawLights().
+	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, spotDiffuse);
+	glLightfv(GL_LIGHT1, GL_SPECULAR, spotSpecular);
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, SPOTLIGHT_CUTOFF_DEG);
+	glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, SPOTLIGHT_EXPONENT);
 	
 	// Enable lighting
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
+	glEnable(GL_LIGHT1);
 	
 	// Make GL normalize the normal vectors we supply.
 	glEnable(GL_NORMALIZE);
+
+	// Enable use of simple GL colours as materials.
+	// Removed: every object now sets a real material with setMaterial().
 	
 	// Light both sides of flat shapes (the propeller), not just the front.
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
@@ -824,6 +867,42 @@ void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLf
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, colour);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specularColour);
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+}
+
+/*
+	Set light positions and directions for this frame. Called after gluLookAt and before drawing,
+	so every object is lit by this frame's lights.
+*/
+void drawLights(void) {
+	GLfloat spotPosition[] = { 0.0f, 0.0f, 0.0f, 1.0f };   // w = 1: a light at a point, needed for a spotlight
+	GLfloat spotDirection[] = { 0.0f, -1.0f, 0.0f };       // Straight down, before the sweep is applied
+
+	// Switch each light on or off to match its toggle key.
+	if (mainLightEnabled) {
+		glEnable(GL_LIGHT0);
+	}
+	else {
+		glDisable(GL_LIGHT0);
+	}
+	if (spotlightEnabled) {
+		glEnable(GL_LIGHT1);
+	}
+	else {
+		glDisable(GL_LIGHT1);
+	}
+
+	// Main light: set after gluLookAt so its direction is fixed in the world, not to the camera.
+	glLightfv(GL_LIGHT0, GL_POSITION, mainLightDirection);
+
+	// Spotlight: same transforms as the octopus, so it moves and turns with it.
+	glPushMatrix();
+	glTranslatef(octopusX, octopusY, octopusZ);
+	glRotatef(octopusHeading, 0, 1, 0);
+	glTranslatef(0.0f, SPOTLIGHT_HEIGHT, SPOTLIGHT_FORWARD);
+	glRotatef(SPOTLIGHT_SWEEP_ANGLE * sinf(spotlightSweepPhase * DEG_TO_RAD), 0, 0, 1); // Swing side to side
+	glLightfv(GL_LIGHT1, GL_POSITION, spotPosition);
+	glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, spotDirection);
+	glPopMatrix();
 }
 
 /****************************************2026****************************************/
