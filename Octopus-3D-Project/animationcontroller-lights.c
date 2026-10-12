@@ -153,6 +153,8 @@ void drawLights(void);
 int readInt32(const unsigned char* bytes);
 unsigned char* loadBMP(const char* filename, int* width, int* height);
 GLuint loadTexture(const char* filename);
+float groundHeight(float x, float z);
+void drawGroundVertex(float x, float z);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -698,13 +700,15 @@ void think(void)
 	}
 	if (keyboardMotion.Heave != MOTION_NONE) {
 		/* TEMPLATE: Move your object down if .Heave < 0, or up if .Heave > 0 */
-		// Never below the seabed.
 		if (motorEnabled) {
 			octopusY += MOVE_SPEED_MPS * keyboardMotion.Heave * FRAME_TIME_SEC;
-			if (octopusY < OCTOPUS_MIN_Y) {
-				octopusY = OCTOPUS_MIN_Y;
-			}
 		}
+	}
+
+	// Never below the seabed: keep the feet above the ground under the octopus, even when swimming into a hill.
+	float lowestY = groundHeight(octopusX, octopusZ) + OCTOPUS_MIN_Y;
+	if (octopusY < lowestY) {
+		octopusY = lowestY;
 	}
 
 	// Ease the camera heading towards the octopus heading, taking the shortest way round.
@@ -784,19 +788,17 @@ void drawGround() {
 	glBindTexture(GL_TEXTURE_2D, sandTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, MATTE_SPECULAR, MATTE_SHININESS);
 
-	for (int x = -GROUND_SIZE / 2; x < GROUND_SIZE / 2; x += TILE_SIZE) {
-		for (int z = -GROUND_SIZE / 2; z < GROUND_SIZE / 2; z += TILE_SIZE) {
+	// Centre the ground on the octopus, snapped to whole tiles, so it never runs out.
+	int centreX = (int)floorf(octopusX / TILE_SIZE) * TILE_SIZE;
+	int centreZ = (int)floorf(octopusZ / TILE_SIZE) * TILE_SIZE;
+
+	for (int x = centreX - GROUND_SIZE / 2; x < centreX + GROUND_SIZE / 2; x += TILE_SIZE) {
+		for (int z = centreZ - GROUND_SIZE / 2; z < centreZ + GROUND_SIZE / 2; z += TILE_SIZE) {
 			glBegin(GL_QUADS);
-			glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
-			// Texture coordinates from world position: the image repeats every SEABED_TEXTURE_SIZE metres.
-			glTexCoord2f(x / SEABED_TEXTURE_SIZE, z / SEABED_TEXTURE_SIZE);
-			glVertex3f(x, 0.0f, z);
-			glTexCoord2f(x / SEABED_TEXTURE_SIZE, (z + TILE_SIZE) / SEABED_TEXTURE_SIZE);
-			glVertex3f(x, 0.0f, z + TILE_SIZE);
-			glTexCoord2f((x + TILE_SIZE) / SEABED_TEXTURE_SIZE, (z + TILE_SIZE) / SEABED_TEXTURE_SIZE);
-			glVertex3f(x + TILE_SIZE, 0.0f, z + TILE_SIZE);
-			glTexCoord2f((x + TILE_SIZE) / SEABED_TEXTURE_SIZE, z / SEABED_TEXTURE_SIZE);
-			glVertex3f(x + TILE_SIZE, 0.0f, z);
+			drawGroundVertex(x, z);
+			drawGroundVertex(x, z + TILE_SIZE);
+			drawGroundVertex(x + TILE_SIZE, z + TILE_SIZE);
+			drawGroundVertex(x + TILE_SIZE, z);
 			glEnd();
 		}
 	}
@@ -1045,6 +1047,32 @@ GLuint loadTexture(const char* filename) {
 	// OpenGL has its own copy now.
 	free(pixels);
 	return textureId;
+}
+
+/*
+	Seabed height in metres at a world position. Three waves of different sizes, running in
+	different directions, are added together so the hills look irregular. The same spot always
+	gives the same height, so the hills stay put while the ground follows the octopus.
+*/
+float groundHeight(float x, float z) {
+	return 1.5f * sinf(0.06f * x + 0.03f * z)
+		+ 1.0f * sinf(0.09f * z - 0.05f * x + 1.0f)
+		+ 0.5f * sinf(0.21f * x + 0.17f * z + 2.0f);
+}
+
+/*
+	One seabed corner: a normal tilted to match the slope, a world-based texture coordinate,
+	and the vertex raised to groundHeight().
+*/
+void drawGroundVertex(float x, float z) {
+	// Slope: compare the heights 1 m either side in x and in z.
+	float slopeX = groundHeight(x + 1.0f, z) - groundHeight(x - 1.0f, z);
+	float slopeZ = groundHeight(x, z + 1.0f) - groundHeight(x, z - 1.0f);
+	glNormal3f(-slopeX, 2.0f, -slopeZ);
+
+	// The image repeats every SEABED_TEXTURE_SIZE metres.
+	glTexCoord2f(x / SEABED_TEXTURE_SIZE, z / SEABED_TEXTURE_SIZE);
+	glVertex3f(x, groundHeight(x, z), z);
 }
 
 /****************************************2026****************************************/
