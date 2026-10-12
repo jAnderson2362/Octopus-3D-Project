@@ -13,9 +13,13 @@
  *
  ******************************************************************************/
 
+#define _CRT_SECURE_NO_WARNINGS   // Allow standard fopen; MSVC's fopen_s is Windows-only
+
 #include <Windows.h>
 #include <freeglut.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
  /******************************************************************************
   * Animation & Timing Setup
@@ -146,6 +150,9 @@ float getForwardX(float headingDeg);
 float getForwardZ(float headingDeg);
 void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLfloat shininess);
 void drawLights(void);
+int readInt32(const unsigned char* bytes);
+unsigned char* loadBMP(const char* filename, int* width, int* height);
+GLuint loadTexture(const char* filename);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -189,6 +196,10 @@ void drawLights(void);
 #define SPOTLIGHT_SWEEP_ANGLE 30.0f              // How far the beam swings to each side, degrees
 #define SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC 90.0f  // Sweep cycle speed (360 = one full left-right-left cycle per second)
 
+#define SAND_TEXTURE_FILE "sand.bmp"
+#define SKIN_TEXTURE_FILE "skin.bmp"
+#define SEABED_TEXTURE_SIZE 20.0f                 // Metres of seabed covered by one copy of the sand image
+
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
 float feetAngle = 0.0f;
@@ -224,6 +235,13 @@ int spotlightEnabled = 1;
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
+
+// Texture IDs from glGenTextures, set once in init(). 0 means not loaded.
+GLuint sandTexture = 0;
+GLuint skinTexture = 0;
+
+// Quadric for the body sphere. Unlike glutSolidSphere, it can generate texture coordinates.
+GLUquadric* bodyQuadric = NULL;
 
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
@@ -554,6 +572,13 @@ void init(void)
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.0, 0.1, 0.3, 1.0);
+
+	// Textures are loaded once here, never in display().
+	sandTexture = loadTexture(SAND_TEXTURE_FILE);
+	skinTexture = loadTexture(SKIN_TEXTURE_FILE);
+
+	bodyQuadric = gluNewQuadric();
+	gluQuadricTexture(bodyQuadric, GL_TRUE);   // Generate texture coordinates for the sphere
 }
 
 /*
@@ -754,26 +779,39 @@ void initLights(void)
 }
 
 void drawGround() {
-	// Matte mossy sand seabed, drawn as tiles so lighting is calculated across the whole ground.
-	setMaterial(0.66f, 0.70f, 0.46f, MATTE_SPECULAR, MATTE_SHININESS);
+	// Sand texture over a white material, so lighting shades the image without tinting it.
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, sandTexture);
+	setMaterial(1.0f, 1.0f, 1.0f, MATTE_SPECULAR, MATTE_SHININESS);
 
 	for (int x = -GROUND_SIZE / 2; x < GROUND_SIZE / 2; x += TILE_SIZE) {
 		for (int z = -GROUND_SIZE / 2; z < GROUND_SIZE / 2; z += TILE_SIZE) {
 			glBegin(GL_QUADS);
 			glNormal3f(0.0f, 1.0f, 0.0f); // Upward normal
+			// Texture coordinates from world position: the image repeats every SEABED_TEXTURE_SIZE metres.
+			glTexCoord2f(x / SEABED_TEXTURE_SIZE, z / SEABED_TEXTURE_SIZE);
 			glVertex3f(x, 0.0f, z);
+			glTexCoord2f(x / SEABED_TEXTURE_SIZE, (z + TILE_SIZE) / SEABED_TEXTURE_SIZE);
 			glVertex3f(x, 0.0f, z + TILE_SIZE);
+			glTexCoord2f((x + TILE_SIZE) / SEABED_TEXTURE_SIZE, (z + TILE_SIZE) / SEABED_TEXTURE_SIZE);
 			glVertex3f(x + TILE_SIZE, 0.0f, z + TILE_SIZE);
+			glTexCoord2f((x + TILE_SIZE) / SEABED_TEXTURE_SIZE, z / SEABED_TEXTURE_SIZE);
 			glVertex3f(x + TILE_SIZE, 0.0f, z);
 			glEnd();
 		}
 	}
+
+	glDisable(GL_TEXTURE_2D);
 }
 
 void drawTentacle() {
 	glPushMatrix();
-	setMaterial(0.0f, 0.8f, 0.8f, WET_SPECULAR, WET_SHININESS);
-	glutSolidSphere(TENTACLE_RADIUS, 6, 6);
+	// Same skin texture as the body.
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, skinTexture);
+	setMaterial(1.0f, 1.0f, 1.0f, WET_SPECULAR, WET_SHININESS);
+	gluSphere(bodyQuadric, TENTACLE_RADIUS, 6, 6);
+	glDisable(GL_TEXTURE_2D);
 	glPopMatrix();
 }
 
@@ -802,8 +840,12 @@ void drawOctopus() {
 	glPushMatrix();
 	glTranslatef(octopusX, octopusY, octopusZ);
 	glRotatef(octopusHeading, 0, 1, 0);
-	setMaterial(0.0f, 0.8f, 0.8f, WET_SPECULAR, WET_SHININESS);
-	glutSolidSphere(BODY_RADIUS, 20, 20);
+	// Skin texture on the body. White material so the texture isn't tinted cyan.
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, skinTexture);
+	setMaterial(1.0f, 1.0f, 1.0f, WET_SPECULAR, WET_SHININESS);
+	gluSphere(bodyQuadric, BODY_RADIUS, 20, 20);
+	glDisable(GL_TEXTURE_2D);;
 
 	glPushMatrix();
 	glTranslatef(EYE_OFFSET_X, EYE_OFFSET_Y, BODY_RADIUS * EYE_DEPTH);
@@ -903,6 +945,106 @@ void drawLights(void) {
 	glLightfv(GL_LIGHT1, GL_POSITION, spotPosition);
 	glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, spotDirection);
 	glPopMatrix();
+}
+
+/*
+	Combine 4 little-endian bytes (lowest byte first) into one int.
+	Each later byte is worth 256 times more, so it's shifted 8 bits further left.
+*/
+int readInt32(const unsigned char* bytes) {
+	return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+}
+
+/*
+	Load a 24-bit BMP file. Returns tightly packed RGB pixels, bottom row first
+	(the order OpenGL expects), or NULL if it can't be loaded. The caller must free() the result.
+*/
+unsigned char* loadBMP(const char* filename, int* width, int* height) {
+	unsigned char header[54];
+	FILE* file = fopen(filename, "rb");   // "b" = binary mode, so Windows doesn't alter any bytes
+	if (file == NULL) {
+		return NULL;
+	}
+
+	// Read the 54-byte header and check it starts with "BM".
+	if (fread(header, 1, 54, file) != 54 || header[0] != 'B' || header[1] != 'M') {
+		fclose(file);
+		return NULL;
+	}
+
+	int dataOffset = readInt32(header + 10);
+	*width = readInt32(header + 18);
+	*height = readInt32(header + 22);
+	int bitsPerPixel = header[28] | (header[29] << 8);
+
+	if (bitsPerPixel != 24 || *width <= 0 || *height <= 0) {
+		fclose(file);
+		return NULL;
+	}
+
+	// 3 bytes per pixel, and each row in the file is padded up to a multiple of 4 bytes.
+	int rowSize = *width * 3;
+	int padding = (4 - rowSize % 4) % 4;
+
+	unsigned char* pixels = (unsigned char*)malloc(rowSize * *height);
+	if (pixels == NULL) {
+		fclose(file);
+		return NULL;
+	}
+
+	// Jump to the pixel data, then read one row at a time, skipping the padding after each.
+	fseek(file, dataOffset, SEEK_SET);
+	for (int row = 0; row < *height; row++) {
+		unsigned char* rowStart = pixels + row * rowSize;
+		if (fread(rowStart, 1, rowSize, file) != rowSize) {
+			free(pixels);
+			fclose(file);
+			return NULL;
+		}
+		fseek(file, padding, SEEK_CUR);
+
+		// BMP stores B, G, R: swap the first and third byte of each pixel to get R, G, B.
+		for (int i = 0; i < rowSize; i += 3) {
+			unsigned char blue = rowStart[i];
+			rowStart[i] = rowStart[i + 2];
+			rowStart[i + 2] = blue;
+		}
+	}
+
+	fclose(file);
+	return pixels;
+}
+
+/*
+	Load a BMP and upload it to OpenGL. Returns the texture ID, or 0 if loading failed.
+	Only call from init(): loading every frame would be very slow.
+*/
+GLuint loadTexture(const char* filename) {
+	int width, height;
+	unsigned char* pixels = loadBMP(filename, &width, &height);
+	if (pixels == NULL) {
+		printf("Couldn't load texture %s\n", filename);
+		return 0;
+	}
+
+	GLuint textureId;
+	glGenTextures(1, &textureId);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+
+	// Repeat the image when texture coordinates go past 1.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// The default min filter expects mipmaps, which we don't make, so the texture would show white.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// Our rows have no padding, so tell OpenGL not to expect each row to start on a 4-byte boundary.
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+	// OpenGL has its own copy now.
+	free(pixels);
+	return textureId;
 }
 
 /****************************************2026****************************************/
