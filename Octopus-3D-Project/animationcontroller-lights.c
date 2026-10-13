@@ -155,6 +155,7 @@ unsigned char* loadBMP(const char* filename, int* width, int* height);
 GLuint loadTexture(const char* filename);
 float groundHeight(float x, float z);
 void drawGroundVertex(float x, float z);
+void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int holeSize);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -162,6 +163,9 @@ void drawGroundVertex(float x, float z);
 
 #define GROUND_SIZE 100
 #define TILE_SIZE 1
+#define FAR_GROUND_SIZE 800       // Coarse ground out towards the horizon, metres across
+#define FAR_TILE_SIZE 10          // Big far tiles: the detail can't be seen that far away
+#define FAR_GROUND_DROP 1.0f      // Far ground sits this far lower, so where it overlaps the near ground it stays hidden underneath
 #define BODY_RADIUS 3.0f
 #define EYE_RADIUS 0.5f
 #define	TENTACLE_RADIUS 1.0f
@@ -201,6 +205,9 @@ void drawGroundVertex(float x, float z);
 #define SAND_TEXTURE_FILE "sand.bmp"
 #define SKIN_TEXTURE_FILE "skin.bmp"
 #define SEABED_TEXTURE_SIZE 20.0f                 // Metres of seabed covered by one copy of the sand image
+
+#define FOG_START 100.0f                          // Distance from the camera where fog begins (the octopus is about 26 m away, so it stays clear)
+#define FOG_END 340.0f                           // Fully fogged here, before the edge of the far ground can be seen
 
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
@@ -335,7 +342,7 @@ void reshape(int width, int h)
 	glViewport(0, 0, width, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60, (GLfloat)width / (GLfloat)h, 1.0, 200.0);
+	gluPerspective(60, (GLfloat)width / (GLfloat)h, 1.0, 400.0);
 	glMatrixMode(GL_MODELVIEW);
 }
 
@@ -575,6 +582,14 @@ void init(void)
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.0, 0.1, 0.3, 1.0);
 
+	// Fog in the same colour as the water (glClearColor), so the far seabed fades out instead of ending at an edge.
+	GLfloat fogColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
+	glFogi(GL_FOG_MODE, GL_LINEAR);
+	glFogfv(GL_FOG_COLOR, fogColour);
+	glFogf(GL_FOG_START, FOG_START);
+	glFogf(GL_FOG_END, FOG_END);
+	glEnable(GL_FOG);
+
 	// Textures are loaded once here, never in display().
 	sandTexture = loadTexture(SAND_TEXTURE_FILE);
 	skinTexture = loadTexture(SKIN_TEXTURE_FILE);
@@ -788,20 +803,19 @@ void drawGround() {
 	glBindTexture(GL_TEXTURE_2D, sandTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, MATTE_SPECULAR, MATTE_SHININESS);
 
-	// Centre the ground on the octopus, snapped to whole tiles, so it never runs out.
-	int centreX = (int)floorf(octopusX / TILE_SIZE) * TILE_SIZE;
-	int centreZ = (int)floorf(octopusZ / TILE_SIZE) * TILE_SIZE;
+	// Centre the ground on the octopus, snapped to whole far tiles, so it never runs out
+	// and the near square's edges line up with the far tiles.
+	int centreX = (int)floorf((float)octopusX / FAR_TILE_SIZE) * FAR_TILE_SIZE;
+	int centreZ = (int)floorf((float)octopusZ / FAR_TILE_SIZE) * FAR_TILE_SIZE;
 
-	for (int x = centreX - GROUND_SIZE / 2; x < centreX + GROUND_SIZE / 2; x += TILE_SIZE) {
-		for (int z = centreZ - GROUND_SIZE / 2; z < centreZ + GROUND_SIZE / 2; z += TILE_SIZE) {
-			glBegin(GL_QUADS);
-			drawGroundVertex(x, z);
-			drawGroundVertex(x, z + TILE_SIZE);
-			drawGroundVertex(x + TILE_SIZE, z + TILE_SIZE);
-			drawGroundVertex(x + TILE_SIZE, z);
-			glEnd();
-		}
-	}
+	// Near: small tiles, so the spotlight circle looks round.
+	drawGroundSquare(centreX, centreZ, GROUND_SIZE, TILE_SIZE, 0);
+	// Far: big tiles out towards the horizon. The hole is one far tile smaller than the near ground, so the
+	// two overlap with no cracks, and the far ground is lowered slightly so it stays hidden under the near ground.
+	glPushMatrix();
+	glTranslatef(0.0f, -FAR_GROUND_DROP, 0.0f);
+	drawGroundSquare(centreX, centreZ, FAR_GROUND_SIZE, FAR_TILE_SIZE, GROUND_SIZE - 2 * FAR_TILE_SIZE);
+	glPopMatrix();
 
 	glDisable(GL_TEXTURE_2D);
 }
@@ -1073,6 +1087,29 @@ void drawGroundVertex(float x, float z) {
 	// The image repeats every SEABED_TEXTURE_SIZE metres.
 	glTexCoord2f(x / SEABED_TEXTURE_SIZE, z / SEABED_TEXTURE_SIZE);
 	glVertex3f(x, groundHeight(x, z), z);
+}
+
+/*
+	Draw a square of seabed tiles centred on (centreX, centreZ), skipping a hole of holeSize
+	in the middle (0 for no hole).
+*/
+void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int holeSize) {
+	for (int x = centreX - size / 2; x < centreX + size / 2; x += tileSize) {
+		for (int z = centreZ - size / 2; z < centreZ + size / 2; z += tileSize) {
+			// Skip tiles inside the hole, where the near ground is drawn instead.
+			if (x >= centreX - holeSize / 2 && x < centreX + holeSize / 2 &&
+				z >= centreZ - holeSize / 2 && z < centreZ + holeSize / 2) {
+				continue;
+			}
+
+			glBegin(GL_QUADS);
+			drawGroundVertex(x, z);
+			drawGroundVertex(x, z + tileSize);
+			drawGroundVertex(x + tileSize, z + tileSize);
+			drawGroundVertex(x + tileSize, z);
+			glEnd();
+		}
+	}
 }
 
 /****************************************2026****************************************/
