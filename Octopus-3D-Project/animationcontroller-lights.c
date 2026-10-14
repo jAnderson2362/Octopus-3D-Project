@@ -261,6 +261,13 @@ GLuint skinTexture = 0;
 // Quadric for the body sphere. Unlike glutSolidSphere, it can generate texture coordinates.
 GLUquadric* bodyQuadric = NULL;
 
+// Seabed display list: compiled once and replayed every frame. Only rebuilt when the ground
+// moves (hills, every FAR_TILE_SIZE metres) or the seabed mode changes.
+GLuint groundList = 0;
+int groundListCentreX = 0;
+int groundListCentreZ = 0;
+int groundListHills = -1;      // Seabed mode the list was built for (-1 = not built yet)
+
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
  ******************************************************************************/
@@ -615,6 +622,8 @@ void init(void)
 
 	bodyQuadric = gluNewQuadric();
 	gluQuadricTexture(bodyQuadric, GL_TRUE);   // Generate texture coordinates for the sphere
+
+	groundList = glGenLists(1);   // Reserve one display list ID for the seabed
 }
 
 /*
@@ -822,25 +831,40 @@ void drawGround() {
 	glBindTexture(GL_TEXTURE_2D, sandTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, MATTE_SPECULAR, MATTE_SHININESS);
 
+	// Flat: the spec's grid, centred at the origin. Hills: centred on the octopus, snapped to whole
+	// far tiles, so it never runs out and the near square's edges line up with the far tiles.
+	int centreX = 0;
+	int centreZ = 0;
 	if (hillsEnabled) {
-		// Centre the ground on the octopus, snapped to whole far tiles, so it never runs out
-		// and the near square's edges line up with the far tiles.
-		int centreX = (int)floorf(octopusX / FAR_TILE_SIZE) * FAR_TILE_SIZE;
-		int centreZ = (int)floorf(octopusZ / FAR_TILE_SIZE) * FAR_TILE_SIZE;
+		centreX = (int)floorf(octopusX / FAR_TILE_SIZE) * FAR_TILE_SIZE;
+		centreZ = (int)floorf(octopusZ / FAR_TILE_SIZE) * FAR_TILE_SIZE;
+	}
 
-		// Near: small tiles, so the spotlight circle looks round.
-		drawGroundSquare(centreX, centreZ, GROUND_SIZE, TILE_SIZE, 0);
-		// Far: big tiles out towards the horizon. The hole is one far tile smaller than the near ground, so the
-		// two overlap with no cracks, and the far ground is lowered slightly so it stays hidden under the near ground.
-		glPushMatrix();
-		glTranslatef(0.0f, -FAR_GROUND_DROP, 0.0f);
-		drawGroundSquare(centreX, centreZ, FAR_GROUND_SIZE, FAR_TILE_SIZE, GROUND_SIZE - 2 * FAR_TILE_SIZE);
-		glPopMatrix();
+	// Rebuild the display list only when the seabed mode or position has changed since it was built.
+	if (hillsEnabled != groundListHills || centreX != groundListCentreX || centreZ != groundListCentreZ) {
+		glNewList(groundList, GL_COMPILE);
+		if (hillsEnabled) {
+			// Near: small tiles, so the spotlight circle looks round.
+			drawGroundSquare(centreX, centreZ, GROUND_SIZE, TILE_SIZE, 0);
+			// Far: big tiles out towards the horizon. The hole is one far tile smaller than the near ground, so the
+			// two overlap with no cracks, and the far ground is lowered slightly so it stays hidden under the near ground.
+			glPushMatrix();
+			glTranslatef(0.0f, -FAR_GROUND_DROP, 0.0f);
+			drawGroundSquare(centreX, centreZ, FAR_GROUND_SIZE, FAR_TILE_SIZE, GROUND_SIZE - 2 * FAR_TILE_SIZE);
+			glPopMatrix();
+		}
+		else {
+			// Spec: a flat grid of squares on the XZ plane, centred at the origin.
+			drawGroundSquare(0, 0, GROUND_SIZE, TILE_SIZE, 0);
+		}
+		glEndList();
+
+		groundListHills = hillsEnabled;
+		groundListCentreX = centreX;
+		groundListCentreZ = centreZ;
 	}
-	else {
-		// Spec: a flat grid of squares on the XZ plane, centred at the origin.
-		drawGroundSquare(0, 0, GROUND_SIZE, TILE_SIZE, 0);
-	}
+
+	glCallList(groundList);
 
 	glDisable(GL_TEXTURE_2D);
 }
