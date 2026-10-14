@@ -80,19 +80,20 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\James\Documents\GitHub\Octopus-3D-Project\freeglut\include\GL</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\freeglut\include\GL</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\James\Documents\GitHub\Octopus-3D-Project\freeglut\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\freeglut\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>freeglut.lib;opengl32.lib;glu32.lib</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
     <PostBuildEvent>
-      <Command>copy /Y "$(ProjectDir)*.bmp" "$(OutDir)"</Command>
+      <Command>copy /Y "$(ProjectDir)*.bmp" "$(OutDir)"
+copy /Y "$(ProjectDir)..\freeglut\bin\freeglut.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -104,19 +105,20 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\James\Documents\GitHub\Octopus-3D-Project\freeglut\include\GL</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\freeglut\include\GL</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\James\Documents\GitHub\Octopus-3D-Project\freeglut\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\freeglut\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>freeglut.lib;opengl32.lib;glu32.lib</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
     <PostBuildEvent>
-      <Command>copy /Y "$(ProjectDir)*.bmp" "$(OutDir)"</Command>
+      <Command>copy /Y "$(ProjectDir)*.bmp" "$(OutDir)"
+copy /Y "$(ProjectDir)..\freeglut\bin\freeglut.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

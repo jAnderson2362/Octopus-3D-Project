@@ -113,6 +113,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_CAMERA_TOGGLE	'c'
 #define KEY_MAIN_LIGHT_TOGGLE	'1'
 #define KEY_SPOTLIGHT_TOGGLE	'2'
+#define KEY_HILLS_TOGGLE	'h'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -244,6 +245,9 @@ int spotlightEnabled = 1;
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
+
+// Seabed: flat grid at the origin (0, per spec) or endless hills (1, extra feature). Default flat.
+int hillsEnabled = 0;
 
 // Texture IDs from glGenTextures, set once in init(). 0 means not loaded.
 GLuint sandTexture = 0;
@@ -403,6 +407,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_SPOTLIGHT_TOGGLE:
 		spotlightEnabled = !spotlightEnabled;
+		break;
+	case KEY_HILLS_TOGGLE:
+		hillsEnabled = !hillsEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -803,19 +810,25 @@ void drawGround() {
 	glBindTexture(GL_TEXTURE_2D, sandTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, MATTE_SPECULAR, MATTE_SHININESS);
 
-	// Centre the ground on the octopus, snapped to whole far tiles, so it never runs out
-	// and the near square's edges line up with the far tiles.
-	int centreX = (int)floorf((float)octopusX / FAR_TILE_SIZE) * FAR_TILE_SIZE;
-	int centreZ = (int)floorf((float)octopusZ / FAR_TILE_SIZE) * FAR_TILE_SIZE;
+	if (hillsEnabled) {
+		// Centre the ground on the octopus, snapped to whole far tiles, so it never runs out
+		// and the near square's edges line up with the far tiles.
+		int centreX = (int)floorf(octopusX / FAR_TILE_SIZE) * FAR_TILE_SIZE;
+		int centreZ = (int)floorf(octopusZ / FAR_TILE_SIZE) * FAR_TILE_SIZE;
 
-	// Near: small tiles, so the spotlight circle looks round.
-	drawGroundSquare(centreX, centreZ, GROUND_SIZE, TILE_SIZE, 0);
-	// Far: big tiles out towards the horizon. The hole is one far tile smaller than the near ground, so the
-	// two overlap with no cracks, and the far ground is lowered slightly so it stays hidden under the near ground.
-	glPushMatrix();
-	glTranslatef(0.0f, -FAR_GROUND_DROP, 0.0f);
-	drawGroundSquare(centreX, centreZ, FAR_GROUND_SIZE, FAR_TILE_SIZE, GROUND_SIZE - 2 * FAR_TILE_SIZE);
-	glPopMatrix();
+		// Near: small tiles, so the spotlight circle looks round.
+		drawGroundSquare(centreX, centreZ, GROUND_SIZE, TILE_SIZE, 0);
+		// Far: big tiles out towards the horizon. The hole is one far tile smaller than the near ground, so the
+		// two overlap with no cracks, and the far ground is lowered slightly so it stays hidden under the near ground.
+		glPushMatrix();
+		glTranslatef(0.0f, -FAR_GROUND_DROP, 0.0f);
+		drawGroundSquare(centreX, centreZ, FAR_GROUND_SIZE, FAR_TILE_SIZE, GROUND_SIZE - 2 * FAR_TILE_SIZE);
+		glPopMatrix();
+	}
+	else {
+		// Spec: a flat grid of squares on the XZ plane, centred at the origin.
+		drawGroundSquare(0, 0, GROUND_SIZE, TILE_SIZE, 0);
+	}
 
 	glDisable(GL_TEXTURE_2D);
 }
@@ -1069,6 +1082,9 @@ GLuint loadTexture(const char* filename) {
 	gives the same height, so the hills stay put while the ground follows the octopus.
 */
 float groundHeight(float x, float z) {
+	if (!hillsEnabled) {
+		return 0.0f;   // Flat seabed
+	}
 	return 1.5f * sinf(0.06f * x + 0.03f * z)
 		+ 1.0f * sinf(0.09f * z - 0.05f * x + 1.0f)
 		+ 0.5f * sinf(0.21f * x + 0.17f * z + 2.0f);
