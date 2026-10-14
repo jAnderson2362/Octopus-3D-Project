@@ -222,8 +222,11 @@ float octopusY = OCTOPUS_MIN_Y;
 float octopusZ = 0.0f;
 float octopusHeading = 0.0f;
 
-// Motor on (1) or off (0). Feet, propeller and movement only run when on. Default off.
+// Motor on (1) or off (0), spacebar. Feet and propeller spin, and sway and heave work, only when on. Default off.
 int motorEnabled = 0;
+
+// Swimming forward on (1) or off (0), w per spec. Only works while the motor is on. Default off.
+int surgeEnabled = 0;
 
 // Whether w was held last frame, so think() can detect the moment it's pressed.
 keystate_t previousForwardKeyState = KEYSTATE_UP;
@@ -420,6 +423,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_MOTOR_TOGGLE:
 		motorEnabled = !motorEnabled;
+		if (!motorEnabled) {
+			surgeEnabled = 0;   // No forward swimming without the motor
+		}
 		break;
 	case KEY_CAMERA_TOGGLE:
 		cameraFrontView = !cameraFrontView;
@@ -636,14 +642,17 @@ void init(void)
 */
 void think(void)
 {
-	// w switches the motor on/off (per spec). Its handler is in a DON'T CHANGE section,
-	// so detect the moment it goes from up to down here instead.
+	// w switches forward swimming on/off (per spec), starting the motor if it's off. Its handler is in a
+	// DON'T CHANGE section, so detect the moment it goes from up to down here instead.
 	if (motionKeyStates.MoveForward == KEYSTATE_DOWN && previousForwardKeyState == KEYSTATE_UP) {
-		motorEnabled = !motorEnabled;
+		surgeEnabled = !surgeEnabled;
+		if (surgeEnabled) {
+			motorEnabled = 1;   // Swimming forward needs the feet and propeller spinning
+		}
 	}
 	previousForwardKeyState = motionKeyStates.MoveForward;
 
-	// Propeller only spins when the motor is on (forward thrust).
+	// Propeller only spins when the motor is on.
 	if (motorEnabled) {
 		propellerAngle += PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
 		if (propellerAngle >= 360.0f) {
@@ -727,8 +736,8 @@ void think(void)
 		// Not used: per the spec, w toggles forward motion on/off instead of being held (see below).
 	}
 
-	// Surge: w/spacebar switch forward motion on and off, so it swims forward whenever the motor is on.
-	if (motorEnabled) {
+	// Surge: w switches forward swimming on and off while the motor is on.
+	if (motorEnabled && surgeEnabled) {
 		octopusX += getForwardX(octopusHeading) * MOVE_SPEED_MPS * FRAME_TIME_SEC;
 		octopusZ += getForwardZ(octopusHeading) * MOVE_SPEED_MPS * FRAME_TIME_SEC;
 	}
