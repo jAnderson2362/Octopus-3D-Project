@@ -207,8 +207,10 @@ void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int hole
 #define SKIN_TEXTURE_FILE "skin.bmp"
 #define SEABED_TEXTURE_SIZE 20.0f                 // Metres of seabed covered by one copy of the sand image
 
-#define FOG_START 100.0f                          // Distance from the camera where fog begins (the octopus is about 26 m away, so it stays clear)
-#define FOG_END 340.0f                           // Fully fogged here, before the edge of the far ground can be seen
+#define FLAT_FOG_START 30.0f                     // Flat grid: fog begins just past the octopus (about 26 m from the camera)
+#define FLAT_FOG_END 90.0f                       // Flat grid: mostly fogged by the grid's far edge, so it fades instead of cutting off
+#define HILLS_FOG_START 100.0f                   // Hills: fog begins further out, so more of the hills can be seen
+#define HILLS_FOG_END 340.0f                     // Hills: fully fogged before the edge of the far ground can be seen
 
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
@@ -235,6 +237,9 @@ int cameraFrontView = 0;
 // Main light: directional (w = 0), shining down like sunlight through water.
 // For a directional light, x, y, z point TOWARDS the light: here from above, slightly to one side and in front.
 GLfloat mainLightDirection[] = { 0.3f, 1.0f, 0.4f, 0.0f };
+
+// Sea colour, used for both the background (glClearColor) and the fog, so they always match.
+GLfloat waterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
 
 // Spotlight sweep phase in degrees. think() advances it, and drawLights() turns it into a side-to-side swing.
 float spotlightSweepPhase = 0.0f;
@@ -324,6 +329,16 @@ void display(void)
 		octopusX, octopusY, octopusZ,                                    // Target: the octopus
 		0, 1, 0);                                                        // Up
 	drawLights();
+
+	// Fog distances depend on the seabed: close in for the small flat grid, far out for the endless hills.
+	if (hillsEnabled) {
+		glFogf(GL_FOG_START, HILLS_FOG_START);
+		glFogf(GL_FOG_END, HILLS_FOG_END);
+	}
+	else {
+		glFogf(GL_FOG_START, FLAT_FOG_START);
+		glFogf(GL_FOG_END, FLAT_FOG_END);
+	}
 
 	if (renderFillEnabled) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -587,14 +602,11 @@ void init(void)
 	
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	glEnable(GL_DEPTH_TEST);
-	glClearColor(0.0, 0.1, 0.3, 1.0);
+	glClearColor(waterColour[0], waterColour[1], waterColour[2], waterColour[3]);
 
-	// Fog in the same colour as the water (glClearColor), so the far seabed fades out instead of ending at an edge.
-	GLfloat fogColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
+	// Fog in the water colour, so distant things fade into the background. Distances are set each frame in display().
 	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogfv(GL_FOG_COLOR, fogColour);
-	glFogf(GL_FOG_START, FOG_START);
-	glFogf(GL_FOG_END, FOG_END);
+	glFogfv(GL_FOG_COLOR, waterColour);
 	glEnable(GL_FOG);
 
 	// Textures are loaded once here, never in display().
