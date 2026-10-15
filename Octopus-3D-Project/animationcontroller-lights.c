@@ -114,6 +114,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_MAIN_LIGHT_TOGGLE	'1'
 #define KEY_SPOTLIGHT_TOGGLE	'2'
 #define KEY_HILLS_TOGGLE	'h'
+#define KEY_AXES_TOGGLE		'x'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -157,6 +158,7 @@ GLuint loadTexture(const char* filename);
 float groundHeight(float x, float z);
 void drawGroundVertex(float x, float z);
 void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int holeSize);
+void drawAxes(void);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -173,11 +175,22 @@ void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int hole
 #define TENTACLE_SPREAD 2.5f
 #define TENTACLE_COUNT 8
 #define PROPELLER_SIZE 1.5f
-#define BEAK_RADIUS 0.5f
-#define BEAK_LENGTH 0.8f
+#define BEAK_TUBE_RADIUS 0.15f    // Thickness of the beak ring
+#define BEAK_RING_RADIUS 0.45f    // Size of the beak ring, centre to middle of the tube
+#define BEAK_OFFSET_Y -1.0f       // Below the eyes
+#define BEAK_DEPTH 0.92f          // How far forward, as a fraction of the body radius
+#define BEAK_TILT_DEG 20.0f       // Tilts the ring down so it sits flat on the curved body
 #define EYE_OFFSET_X 1.0f
-#define EYE_OFFSET_Y 0.5f
-#define EYE_DEPTH 0.83f
+#define EYE_OFFSET_Y 1.0f
+#define EYE_DEPTH 0.79f
+#define CHEEK_RADIUS 0.7f         // Size of each cheek before flattening
+#define CHEEK_FLATTEN 0.35f       // Squashes the cheek into a disc on the body surface (1 = round)
+#define CHEEK_ANGLE_DEG 45.0f     // How far round from the front towards each side
+#define CHEEK_OFFSET_Y -0.3f      // Slightly below the body's centre
+#define CHEEK_DEPTH 0.95f         // How far out from the centre, as a fraction of the body radius
+#define AXIS_LENGTH 20.0f         // Length of each debug world axis line from the origin
+#define AXIS_LIFT 0.05f           // Raises the axes just above the seabed so they don't flicker into it
+#define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
 #define RPM_TO_DEG_PER_SEC (360.0f / 60.0f)
@@ -256,6 +269,9 @@ int renderFillEnabled = 1;
 
 // Seabed: flat grid at the origin (0, per spec) or endless hills (1, extra feature). Default flat.
 int hillsEnabled = 0;
+
+// Debug world XYZ axes at the origin: shown (1) or hidden (0). Default hidden.
+int axesEnabled = 0;
 
 // Texture IDs from glGenTextures, set once in init(). 0 means not loaded.
 GLuint sandTexture = 0;
@@ -358,6 +374,13 @@ void display(void)
 	}
 
 	drawGround();
+	// Debug world axes at the origin, where the seabed grid is centred.
+	if (axesEnabled) {
+		glPushMatrix();
+		glTranslatef(0.0f, AXIS_LIFT, 0.0f);   // Just above the flat seabed, so the X and Z lines aren't hidden in it
+		drawAxes();
+		glPopMatrix();
+	}
 	drawOctopus();
 	glutSwapBuffers();
 	
@@ -438,6 +461,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_HILLS_TOGGLE:
 		hillsEnabled = !hillsEnabled;
+		break;
+	case KEY_AXES_TOGGLE:
+		axesEnabled = !axesEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -919,7 +945,7 @@ void drawOctopus() {
 	glBindTexture(GL_TEXTURE_2D, skinTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, WET_SPECULAR, WET_SHININESS);
 	gluSphere(bodyQuadric, BODY_RADIUS, 20, 20);
-	glDisable(GL_TEXTURE_2D);;
+	glDisable(GL_TEXTURE_2D);
 
 	glPushMatrix();
 	glTranslatef(EYE_OFFSET_X, EYE_OFFSET_Y, BODY_RADIUS * EYE_DEPTH);
@@ -940,12 +966,23 @@ void drawOctopus() {
 	drawPropeller();
 	glPopMatrix();
 
-	// Beak on the underside, pointing down
+	// Cheeks: flattened maroon spheres on each side of the face. side is -1 (left) or 1 (right).
+	for (int side = -1; side <= 1; side += 2) {
+		glPushMatrix();
+		glRotatef(side * CHEEK_ANGLE_DEG, 0, 1, 0);                // Swing round from the front towards this side
+		glTranslatef(0.0f, CHEEK_OFFSET_Y, BODY_RADIUS * CHEEK_DEPTH); // Out to the body surface
+		glScalef(1.0f, 1.0f, CHEEK_FLATTEN);                       // Squash along the outward direction
+		setMaterial(0.6f, 0.1f, 0.15f, MATTE_SPECULAR, MATTE_SHININESS);
+		glutSolidSphere(CHEEK_RADIUS, 12, 12);
+		glPopMatrix();
+	}
+
+	// Beak: a ring on the front, below the eyes, where the bubbles come out
 	glPushMatrix();
-	glTranslatef(0, -BODY_RADIUS, 0);
-	glRotatef(90.0f, 1, 0, 0);
+	glTranslatef(0.0f, BEAK_OFFSET_Y, BODY_RADIUS * BEAK_DEPTH);
+	glRotatef(BEAK_TILT_DEG, 1, 0, 0);
 	setMaterial(1.0f, 0.6f, 0.0f, MATTE_SPECULAR, MATTE_SHININESS);
-	glutSolidCone(BEAK_RADIUS, BEAK_LENGTH, 10, 10);
+	glutSolidTorus(BEAK_TUBE_RADIUS, BEAK_RING_RADIUS, 10, 20);
 	glPopMatrix();
 
 	for (int i = 0; i < TENTACLE_COUNT; i++) {
@@ -1171,6 +1208,47 @@ void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int hole
 			glEnd();
 		}
 	}
+}
+
+/*
+	Debug axes in the current coordinate frame: X red, Y green, Z blue, each AXIS_LENGTH long.
+	Lines have no surface for light to fall on, so instead of glColor they use a black material
+	that glows in its own colour (emission).
+*/
+void drawAxes(void) {
+	GLfloat red[] = { 1.0f, 0.0f, 0.0f, 1.0f };
+	GLfloat green[] = { 0.0f, 1.0f, 0.0f, 1.0f };
+	GLfloat blue[] = { 0.0f, 0.0f, 1.0f, 1.0f };
+	GLfloat noGlow[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	setMaterial(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);   // Reflect no light, so only the glow shows
+
+	// X axis: red
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, red);
+	glBegin(GL_LINES);
+	glVertex3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(AXIS_LENGTH, 0.0f, 0.0f);
+	glEnd();
+
+	// Y axis: green
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, green);
+	glBegin(GL_LINES);
+	glVertex3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(0.0f, AXIS_LENGTH, 0.0f);
+	glEnd();
+
+	// Z axis: blue
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, blue);
+	glBegin(GL_LINES);
+	glVertex3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(0.0f, 0.0f, AXIS_LENGTH);
+	glEnd();
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, noGlow);   // Stop everything drawn after this from glowing
+
+	// Small sphere marking the origin.
+	setMaterial(0.9f, 0.9f, 0.9f, MATTE_SPECULAR, MATTE_SHININESS);
+	glutSolidSphere(AXIS_CENTRE_RADIUS, 12, 12);
 }
 
 /****************************************2026****************************************/
