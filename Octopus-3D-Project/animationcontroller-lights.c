@@ -190,6 +190,7 @@ void drawAxes(void);
 #define CHEEK_DEPTH 0.95f         // How far out from the centre, as a fraction of the body radius
 #define AXIS_LENGTH 20.0f         // Length of each debug world axis line from the origin
 #define AXIS_LIFT 0.05f           // Raises the axes just above the seabed so they don't flicker into it
+#define HILL_MAX_HEIGHT 3.0f      // Highest the hills can reach: the three wave heights in groundHeight() added up
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
@@ -376,8 +377,11 @@ void display(void)
 	drawGround();
 	// Debug world axes at the origin, where the seabed grid is centred.
 	if (axesEnabled) {
+		// Just above the seabed so the X and Z lines aren't hidden in it. With hills on, lift them
+		// above the highest possible hill.
+		float axisHeight = hillsEnabled ? HILL_MAX_HEIGHT + AXIS_LIFT : AXIS_LIFT;
 		glPushMatrix();
-		glTranslatef(0.0f, AXIS_LIFT, 0.0f);   // Just above the flat seabed, so the X and Z lines aren't hidden in it
+		glTranslatef(0.0f, axisHeight, 0.0f);
 		drawAxes();
 		glPopMatrix();
 	}
