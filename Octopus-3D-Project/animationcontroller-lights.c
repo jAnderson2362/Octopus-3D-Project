@@ -115,6 +115,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_SPOTLIGHT_TOGGLE	'2'
 #define KEY_HILLS_TOGGLE	'h'
 #define KEY_AXES_TOGGLE		'x'
+#define KEY_BUBBLES_TOGGLE	'b'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -159,6 +160,9 @@ float groundHeight(float x, float z);
 void drawGroundVertex(float x, float z);
 void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int holeSize);
 void drawAxes(void);
+void spawnBubble(void);
+float randomRange(float min, float max);
+void drawBubbles(void);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -191,6 +195,19 @@ void drawAxes(void);
 #define AXIS_LENGTH 20.0f         // Length of each debug world axis line from the origin
 #define AXIS_LIFT 0.05f           // Raises the axes just above the seabed so they don't flicker into it
 #define HILL_MAX_HEIGHT 3.0f      // Highest the hills can reach: the three wave heights in groundHeight() added up
+#define MAX_BUBBLES 50                      // Most bubbles that can exist at once
+#define BUBBLE_RADIUS 0.15f                 // Size of a new bubble, metres
+#define BUBBLE_INTERVAL_SEC 0.3f            // Time between bubbles while bubbling is on
+#define BUBBLE_MIN_RISE_SPEED_MPS 1.2f      // Each bubble rises at a random speed between these two
+#define BUBBLE_MAX_RISE_SPEED_MPS 2.5f
+#define BUBBLE_MIN_SCALE 0.5f               // Each bubble is a random size between these, times BUBBLE_RADIUS
+#define BUBBLE_MAX_SCALE 1.6f
+#define BUBBLE_SPREAD 0.3f                  // Bubbles start up to this far from the beak centre, metres
+#define BUBBLE_ALPHA 0.35f                  // How solid bubbles look (0 = invisible, 1 = solid)
+#define BUBBLE_LIFETIME_SEC 4.0f            // Bubbles pop after this long
+#define BUBBLE_GROWTH_PER_SEC 0.25f         // Bubbles grow as they rise (0.25 = 25% bigger each second)
+#define BUBBLE_WOBBLE 0.2f                  // How far bubbles sway side to side, metres
+#define BUBBLE_WOBBLE_SPEED_DEG_PER_SEC 360.0f  // Sway speed (360 = one sway each way per second)
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
@@ -287,6 +304,28 @@ GLuint groundList = 0;
 int groundListCentreX = 0;
 int groundListCentreZ = 0;
 int groundListHills = -1;      // Seabed mode the list was built for (-1 = not built yet)
+
+// One bubble: its position in the world, how long it has existed, its own size and rise speed,
+// and whether this slot is in use.
+typedef struct {
+	float x, y, z;
+	float age;
+	float scale;
+	float riseSpeed;
+	int active;
+} bubble_t;
+
+// All bubble slots. Globals start at zero, so every slot starts unused.
+bubble_t bubbles[MAX_BUBBLES];
+
+// Bubbling on (1) or off (0), b key. Default off.
+int bubblesEnabled = 0;
+
+// Time since the last bubble was released, so think() knows when to release the next one.
+float bubbleSpawnTimer = 0.0f;
+
+// Display list holding one bubble sphere, compiled once in init() and reused for every bubble.
+GLuint bubbleList = 0;
 
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
@@ -386,6 +425,7 @@ void display(void)
 		glPopMatrix();
 	}
 	drawOctopus();
+	drawBubbles();
 	glutSwapBuffers();
 	
 }
@@ -468,6 +508,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_AXES_TOGGLE:
 		axesEnabled = !axesEnabled;
+		break;
+	case KEY_BUBBLES_TOGGLE:
+		bubblesEnabled = !bubblesEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -660,6 +703,12 @@ void init(void)
 	gluQuadricTexture(bodyQuadric, GL_TRUE);   // Generate texture coordinates for the sphere
 
 	groundList = glGenLists(1);   // Reserve one display list ID for the seabed
+
+	// One bubble sphere in a display list, reused for every bubble instead of rebuilding the sphere each time.
+	bubbleList = glGenLists(1);
+	glNewList(bubbleList, GL_COMPILE);
+	glutSolidSphere(BUBBLE_RADIUS, 8, 8);
+	glEndList();
 }
 
 /*
@@ -813,6 +862,26 @@ void think(void)
 	spotlightSweepPhase += SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
 	if (spotlightSweepPhase >= 360.0f) {
 		spotlightSweepPhase -= 360.0f;
+	}
+
+	// Bubbles: while b is on, release one from the beak every BUBBLE_INTERVAL_SEC.
+	if (bubblesEnabled) {
+		bubbleSpawnTimer += FRAME_TIME_SEC;
+		if (bubbleSpawnTimer >= BUBBLE_INTERVAL_SEC) {
+			bubbleSpawnTimer -= BUBBLE_INTERVAL_SEC;
+			spawnBubble();
+		}
+	}
+
+	// Every bubble rises and ages, and pops once it's too old.
+	for (int i = 0; i < MAX_BUBBLES; i++) {
+		if (bubbles[i].active) {
+			bubbles[i].y += bubbles[i].riseSpeed * FRAME_TIME_SEC;
+			bubbles[i].age += FRAME_TIME_SEC;
+			if (bubbles[i].age >= BUBBLE_LIFETIME_SEC) {
+				bubbles[i].active = 0;
+			}
+		}
 	}
 }
 
@@ -1253,6 +1322,73 @@ void drawAxes(void) {
 	// Small sphere marking the origin.
 	setMaterial(0.9f, 0.9f, 0.9f, MATTE_SPECULAR, MATTE_SHININESS);
 	glutSolidSphere(AXIS_CENTRE_RADIUS, 12, 12);
+}
+
+/*
+	Release one bubble from the beak, using the first free slot. If all slots are in use, no bubble is released.
+*/
+void spawnBubble(void) {
+	for (int i = 0; i < MAX_BUBBLES; i++) {
+		if (!bubbles[i].active) {
+			// Beak position in the world: forward from the octopus centre along its heading, and down by the beak offset.
+			float beakForward = BODY_RADIUS * BEAK_DEPTH;
+			// A small random offset, so the bubbles don't rise in one neat column.
+			bubbles[i].x = octopusX + getForwardX(octopusHeading) * beakForward + randomRange(-BUBBLE_SPREAD, BUBBLE_SPREAD);
+			bubbles[i].y = octopusY + BEAK_OFFSET_Y;
+			bubbles[i].z = octopusZ + getForwardZ(octopusHeading) * beakForward + randomRange(-BUBBLE_SPREAD, BUBBLE_SPREAD);
+			bubbles[i].age = 0.0f;
+			// Each bubble gets its own size and speed, so they spread out as they rise.
+			bubbles[i].scale = randomRange(BUBBLE_MIN_SCALE, BUBBLE_MAX_SCALE);
+			bubbles[i].riseSpeed = randomRange(BUBBLE_MIN_RISE_SPEED_MPS, BUBBLE_MAX_RISE_SPEED_MPS);
+			bubbles[i].active = 1;
+			return;
+		}
+	}
+}
+
+/*
+	Draw every active bubble at its world position. Each one sways side to side and grows with age.
+	Bubbles are see-through, so they must be drawn after everything solid.
+*/
+void drawBubbles(void) {
+	GLfloat bubbleColour[] = { 0.7f, 0.85f, 1.0f, BUBBLE_ALPHA };   // Pale blue, mostly see-through
+
+	setMaterial(0.7f, 0.85f, 1.0f, WET_SPECULAR, WET_SHININESS);       // Shiny highlights
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, bubbleColour);   // Same colour, but with transparency
+
+	// Blend each bubble with what's behind it, using its alpha as the amount of bubble colour.
+	// Depth writing is off so bubbles don't hide each other or anything behind them.
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthMask(GL_FALSE);
+
+	for (int i = 0; i < MAX_BUBBLES; i++) {
+		if (bubbles[i].active) {
+			// Sway side to side as it rises. Each slot starts at a different point in the sway,
+			// so the bubbles don't all move together.
+			float wobble = BUBBLE_WOBBLE * sinf((bubbles[i].age * BUBBLE_WOBBLE_SPEED_DEG_PER_SEC + i * 40.0f) * DEG_TO_RAD);
+			// Its own random size, growing with age like real bubbles expanding as they rise.
+			float size = bubbles[i].scale * (1.0f + bubbles[i].age * BUBBLE_GROWTH_PER_SEC);
+
+			glPushMatrix();
+			glTranslatef(bubbles[i].x + wobble, bubbles[i].y, bubbles[i].z);
+			glScalef(size, size, size);
+			glCallList(bubbleList);
+			glPopMatrix();
+		}
+	}
+
+	// Back to normal solid drawing.
+	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
+}
+
+/*
+	Random number between min and max. rand() gives a whole number from 0 to RAND_MAX,
+	so dividing by RAND_MAX turns it into 0 to 1, which is then stretched to fit.
+*/
+float randomRange(float min, float max) {
+	return min + (rand() / (float)RAND_MAX) * (max - min);
 }
 
 /****************************************2026****************************************/
