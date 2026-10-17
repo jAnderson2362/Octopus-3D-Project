@@ -117,6 +117,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_AXES_TOGGLE		'x'
 #define KEY_BUBBLES_TOGGLE	'b'
 #define KEY_FISH_TOGGLE		'f'
+#define KEY_SEAWEED_TOGGLE	'g'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -166,6 +167,9 @@ float randomRange(float min, float max);
 void drawBubbles(void);
 void initFish(void);
 void drawFish(void);
+void initSeaweed(void);
+void drawSeaweed(void);
+void drawSeaweedBlade(float height, float phase);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -227,6 +231,21 @@ void drawFish(void);
 #define FISH_MAX_SPEED_DEG_PER_SEC 45.0f
 #define FISH_TAIL_SWING_DEG 25.0f           // How far the tail swings to each side
 #define FISH_TAIL_SPEED_DEG_PER_SEC 720.0f  // Tail wag speed (720 = two wags each way per second)
+#define SEAWEED_COUNT 250                   // Number of seaweed clumps on the seabed
+#define SEAWEED_AREA 120.0f                 // Clumps grow up to this far from the origin in X and Z, metres
+#define SEAWEED_BLADES 5                    // Blades in each clump, fanned out side by side
+#define SEAWEED_MIN_HEIGHT 3.0f             // Each blade is a random height between these, metres (includes SEAWEED_SINK)
+#define SEAWEED_MAX_HEIGHT 6.0f
+#define SEAWEED_WIDTH 0.3f                  // Half the width of a blade at its base, metres. Tapers to a point at the tip
+#define SEAWEED_CURL 0.5f                   // How far the blade waves side to side at its tip, metres
+#define SEAWEED_WAVES 1.5f                  // Number of S-bends along a blade
+#define SEAWEED_STEPS 12                    // Strips per blade: more is smoother
+#define SEAWEED_LEAN_DEG 12.0f              // Each blade leans this much more than the one next to it, so the clump fans out
+#define SEAWEED_BLADE_SPREAD 0.2f           // Gap between neighbouring blade bases, side to side, metres
+#define SEAWEED_BLADE_GAP 0.1f              // Each blade sits this far behind the last, so overlapping blades don't flicker
+#define SEAWEED_BLADE_PHASE_DEG 70.0f       // Each blade in a clump is this far behind the last in the sway, so they don't move together
+#define SEAWEED_SINK 1.0f                   // Base starts below the seabed, so it never floats above the lower far ground
+#define SEAWEED_SWAY_SPEED_DEG_PER_SEC 90.0f   // Sway speed (90 = one wave up the blade every 4 seconds)
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
@@ -365,6 +384,23 @@ int fishEnabled = 0;
 // Tail wag position, degrees. Each fish adds its own offset so the tails don't wag together.
 float fishTailPhase = 0.0f;
 
+// One seaweed clump: where it grows on the seabed, its own starting point in the sway
+// (so the clumps don't move together), and the height of each of its blades.
+typedef struct {
+	float x, z;
+	float phase;
+	float bladeHeight[SEAWEED_BLADES];
+} seaweed_t;
+
+// All the seaweed, given their random values once in initSeaweed().
+seaweed_t seaweed[SEAWEED_COUNT];
+
+// Seaweed on (1) or off (0), g key. Default off.
+int seaweedEnabled = 0;
+
+// Sway position, degrees. Advanced in think() and turned into a moving wave in drawSeaweedBlade().
+float seaweedSwayPhase = 0.0f;
+
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
  ******************************************************************************/
@@ -462,6 +498,9 @@ void display(void)
 		drawAxes();
 		glPopMatrix();
 	}
+	if (seaweedEnabled) {
+		drawSeaweed();
+	}
 	drawOctopus();
 	if (fishEnabled) {
 		drawFish();
@@ -555,6 +594,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_FISH_TOGGLE:
 		fishEnabled = !fishEnabled;
+		break;
+	case KEY_SEAWEED_TOGGLE:
+		seaweedEnabled = !seaweedEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -755,6 +797,7 @@ void init(void)
 	glEndList();
 
 	initFish();
+	initSeaweed();
 }
 
 /*
@@ -940,6 +983,12 @@ void think(void)
 	fishTailPhase += FISH_TAIL_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
 	if (fishTailPhase >= 360.0f) {
 		fishTailPhase -= 360.0f;
+	}
+
+	// Seaweed sway: always running, like the spotlight sweep.
+	seaweedSwayPhase += SEAWEED_SWAY_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
+	if (seaweedSwayPhase >= 360.0f) {
+		seaweedSwayPhase -= 360.0f;
 	}
 }
 
@@ -1497,6 +1546,77 @@ void drawFish(void) {
 		glutSolidCone(FISH_TAIL_RADIUS, FISH_TAIL_LENGTH, 8, 1);
 		glPopMatrix();
 	}
+}
+
+/*
+	Give every seaweed clump a random place on the seabed, starting point in the sway,
+	and a random height for each of its blades.
+*/
+void initSeaweed(void) {
+	for (int i = 0; i < SEAWEED_COUNT; i++) {
+		seaweed[i].x = randomRange(-SEAWEED_AREA, SEAWEED_AREA);
+		seaweed[i].z = randomRange(-SEAWEED_AREA, SEAWEED_AREA);
+		seaweed[i].phase = randomRange(0.0f, 360.0f);
+		for (int j = 0; j < SEAWEED_BLADES; j++) {
+			seaweed[i].bladeHeight[j] = randomRange(SEAWEED_MIN_HEIGHT, SEAWEED_MAX_HEIGHT);
+		}
+	}
+}
+
+/*
+	Draw every seaweed clump: SEAWEED_BLADES wavy blades side by side, the outer ones leaning
+	further out so the clump fans open. Blades alternate light and dark green.
+	The blades are flat, so each clump is turned to face the camera (billboarding). Otherwise
+	blades seen edge-on show up as thin sharp lines.
+*/
+void drawSeaweed(void) {
+	for (int i = 0; i < SEAWEED_COUNT; i++) {
+		// The flat grid only covers GROUND_SIZE, so skip clumps past its edge instead of leaving them floating.
+		if (!hillsEnabled && (fabsf(seaweed[i].x) > GROUND_SIZE / 2.0f || fabsf(seaweed[i].z) > GROUND_SIZE / 2.0f)) {
+			continue;
+		}
+
+		glPushMatrix();
+		// Rooted on the seabed, flat or hills, and sunk slightly so the base is hidden.
+		glTranslatef(seaweed[i].x, groundHeight(seaweed[i].x, seaweed[i].z) - SEAWEED_SINK, seaweed[i].z);
+		// Face the camera. The blades are lit on both sides, so facing towards or away looks the same.
+		glRotatef(cameraHeading, 0, 1, 0);
+		for (int j = 0; j < SEAWEED_BLADES; j++) {
+			// Blade position from the middle of the clump: -2, -1, 0, 1, 2 for 5 blades.
+			float side = j - (SEAWEED_BLADES - 1) / 2.0f;
+			if (j % 2 == 0) {
+				setMaterial(0.3f, 0.75f, 0.2f, MATTE_SPECULAR, MATTE_SHININESS);    // Light green
+			}
+			else {
+				setMaterial(0.1f, 0.45f, 0.15f, MATTE_SPECULAR, MATTE_SHININESS);   // Dark green
+			}
+			glPushMatrix();
+			glTranslatef(side * SEAWEED_BLADE_SPREAD, 0.0f, j * SEAWEED_BLADE_GAP);   // Side by side, each slightly behind the last
+			glRotatef(-side * SEAWEED_LEAN_DEG, 0, 0, 1);                           // Outer blades lean further out
+			drawSeaweedBlade(seaweed[i].bladeHeight[j], seaweed[i].phase + j * SEAWEED_BLADE_PHASE_DEG);
+			glPopMatrix();
+		}
+		glPopMatrix();
+	}
+}
+
+/*
+	One seaweed blade: a flat ribbon standing up from the origin in the XY plane, wide at the base
+	and tapering to a point at the tip. Its centre line follows a sine wave that grows towards the
+	tip (the base stays put) and moves up the blade as seaweedSwayPhase increases.
+*/
+void drawSeaweedBlade(float height, float phase) {
+	glNormal3f(0.0f, 0.0f, 1.0f);   // Ribbon faces +Z. Two-sided lighting lights the back the same way
+	glBegin(GL_QUAD_STRIP);
+	for (int s = 0; s <= SEAWEED_STEPS; s++) {
+		float t = (float)s / SEAWEED_STEPS;   // 0 at the base, 1 at the tip
+		float y = t * height;
+		float x = SEAWEED_CURL * t * sinf((t * SEAWEED_WAVES * 360.0f - seaweedSwayPhase + phase) * DEG_TO_RAD);
+		float halfWidth = SEAWEED_WIDTH * (1.0f - t);
+		glVertex3f(x - halfWidth, y, 0.0f);
+		glVertex3f(x + halfWidth, y, 0.0f);
+	}
+	glEnd();
 }
 
 /****************************************2026****************************************/
