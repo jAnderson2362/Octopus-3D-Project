@@ -116,6 +116,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_HILLS_TOGGLE	'h'
 #define KEY_AXES_TOGGLE		'x'
 #define KEY_BUBBLES_TOGGLE	'b'
+#define KEY_FISH_TOGGLE		'f'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -163,6 +164,8 @@ void drawAxes(void);
 void spawnBubble(void);
 float randomRange(float min, float max);
 void drawBubbles(void);
+void initFish(void);
+void drawFish(void);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -208,6 +211,22 @@ void drawBubbles(void);
 #define BUBBLE_GROWTH_PER_SEC 0.25f         // Bubbles grow as they rise (0.25 = 25% bigger each second)
 #define BUBBLE_WOBBLE 0.2f                  // How far bubbles sway side to side, metres
 #define BUBBLE_WOBBLE_SPEED_DEG_PER_SEC 360.0f  // Sway speed (360 = one sway each way per second)
+#define FISH_COUNT 40                       // Number of fish swimming around the world
+#define FISH_SIZE 0.75f                     // Body sphere radius before stretching, metres
+#define FISH_WIDTH 0.4f                     // Squashes the body sideways (1 = round)
+#define FISH_HEIGHT 0.7f                    // Squashes the body top to bottom (1 = round)
+#define FISH_TAIL_LENGTH 0.625f             // Tail fin length, metres
+#define FISH_TAIL_RADIUS 0.44f              // Tail fin height at its wide end, metres
+#define FISH_TAIL_FLATTEN 0.25f             // Squashes the tail cone into a flat fin (1 = round)
+#define FISH_AREA 120.0f                    // Each fish circles a random spot up to this far from the origin in X and Z, metres
+#define FISH_MIN_ORBIT 3.0f                 // Random circle size round that spot, metres
+#define FISH_MAX_ORBIT 10.0f
+#define FISH_MIN_SWIM_Y (HILL_MAX_HEIGHT + 1.0f)   // Random swimming height, kept above the highest hill
+#define FISH_MAX_SWIM_Y 12.0f
+#define FISH_MIN_SPEED_DEG_PER_SEC 20.0f    // Random speed round the circle
+#define FISH_MAX_SPEED_DEG_PER_SEC 45.0f
+#define FISH_TAIL_SWING_DEG 25.0f           // How far the tail swings to each side
+#define FISH_TAIL_SPEED_DEG_PER_SEC 720.0f  // Tail wag speed (720 = two wags each way per second)
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
@@ -327,6 +346,25 @@ float bubbleSpawnTimer = 0.0f;
 // Display list holding one bubble sphere, compiled once in init() and reused for every bubble.
 GLuint bubbleList = 0;
 
+// One fish: the spot in the world it circles, how far round its circle it is, how far out and
+// how high it swims, and its speed.
+typedef struct {
+	float centreX, centreZ;
+	float angle;
+	float orbitRadius;
+	float height;
+	float speed;
+} fish_t;
+
+// All the fish, given their random values once in initFish().
+fish_t fish[FISH_COUNT];
+
+// Fish on (1) or off (0), f key. Default off.
+int fishEnabled = 0;
+
+// Tail wag position, degrees. Each fish adds its own offset so the tails don't wag together.
+float fishTailPhase = 0.0f;
+
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
  ******************************************************************************/
@@ -425,6 +463,9 @@ void display(void)
 		glPopMatrix();
 	}
 	drawOctopus();
+	if (fishEnabled) {
+		drawFish();
+	}
 	drawBubbles();
 	glutSwapBuffers();
 	
@@ -511,6 +552,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_BUBBLES_TOGGLE:
 		bubblesEnabled = !bubblesEnabled;
+		break;
+	case KEY_FISH_TOGGLE:
+		fishEnabled = !fishEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -709,6 +753,8 @@ void init(void)
 	glNewList(bubbleList, GL_COMPILE);
 	glutSolidSphere(BUBBLE_RADIUS, 8, 8);
 	glEndList();
+
+	initFish();
 }
 
 /*
@@ -882,6 +928,18 @@ void think(void)
 				bubbles[i].active = 0;
 			}
 		}
+	}
+
+	// Every fish moves round its circle at its own speed, and the tails keep wagging.
+	for (int i = 0; i < FISH_COUNT; i++) {
+		fish[i].angle += fish[i].speed * FRAME_TIME_SEC;
+		if (fish[i].angle >= 360.0f) {
+			fish[i].angle -= 360.0f;
+		}
+	}
+	fishTailPhase += FISH_TAIL_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
+	if (fishTailPhase >= 360.0f) {
+		fishTailPhase -= 360.0f;
 	}
 }
 
@@ -1389,6 +1447,56 @@ void drawBubbles(void) {
 */
 float randomRange(float min, float max) {
 	return min + (rand() / (float)RAND_MAX) * (max - min);
+}
+
+/*
+	Give every fish its own random place round its circle, distance, height and speed,
+	so the school looks natural instead of moving as one block.
+*/
+void initFish(void) {
+	for (int i = 0; i < FISH_COUNT; i++) {
+		fish[i].centreX = randomRange(-FISH_AREA, FISH_AREA);
+		fish[i].centreZ = randomRange(-FISH_AREA, FISH_AREA);
+		fish[i].angle = randomRange(0.0f, 360.0f);
+		fish[i].orbitRadius = randomRange(FISH_MIN_ORBIT, FISH_MAX_ORBIT);
+		fish[i].height = randomRange(FISH_MIN_SWIM_Y, FISH_MAX_SWIM_Y);
+		fish[i].speed = randomRange(FISH_MIN_SPEED_DEG_PER_SEC, FISH_MAX_SPEED_DEG_PER_SEC);	}
+}
+
+/*
+	Draw every fish circling its own spot in the world. Each fish is a stretched sphere for the body and a
+	flattened cone for the tail, which swings side to side about the back of the body.
+	The fish model faces +Z, the same as the octopus.
+*/
+void drawFish(void) {
+	for (int i = 0; i < FISH_COUNT; i++) {
+		glPushMatrix();
+		glTranslatef(fish[i].centreX, fish[i].height, fish[i].centreZ);   // Centre of this fish's circle
+		glRotatef(fish[i].angle, 0, 1, 0);                             // Round the circle
+		glTranslatef(0.0f, 0.0f, fish[i].orbitRadius);                 // Out to this fish's distance
+		glRotatef(90.0f, 0, 1, 0);                                     // Face along the circle, the way it swims
+		// Every other fish is pink, the rest light grey. Their places are random, so the colours mix.
+		if (i % 2 == 0) {
+			setMaterial(1.0f, 0.6f, 0.75f, WET_SPECULAR, WET_SHININESS);
+		}
+		else {
+			setMaterial(0.8f, 0.8f, 0.8f, WET_SPECULAR, WET_SHININESS);
+		}
+
+		// Body: long along Z, thin side to side
+		glPushMatrix();
+		glScalef(FISH_WIDTH, FISH_HEIGHT, 1.0f);
+		glutSolidSphere(FISH_SIZE, 12, 12);
+		glPopMatrix();
+
+		// Tail: pivots at the back of the body. Each fish starts at a different point in the wag.
+		glTranslatef(0.0f, 0.0f, -FISH_SIZE);
+		glRotatef(FISH_TAIL_SWING_DEG * sinf((fishTailPhase + i * 30.0f) * DEG_TO_RAD), 0, 1, 0);
+		glTranslatef(0.0f, 0.0f, -FISH_TAIL_LENGTH);   // Cone base at the back, tip touching the body
+		glScalef(FISH_TAIL_FLATTEN, 1.0f, 1.0f);       // Flat fin, not a round cone
+		glutSolidCone(FISH_TAIL_RADIUS, FISH_TAIL_LENGTH, 8, 1);
+		glPopMatrix();
+	}
 }
 
 /****************************************2026****************************************/
