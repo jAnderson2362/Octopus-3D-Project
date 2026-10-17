@@ -118,6 +118,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_BUBBLES_TOGGLE	'b'
 #define KEY_FISH_TOGGLE		'f'
 #define KEY_SEAWEED_TOGGLE	'g'
+#define KEY_DAY_NIGHT_TOGGLE	'n'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -246,6 +247,9 @@ void drawSeaweedBlade(float height, float phase);
 #define SEAWEED_BLADE_PHASE_DEG 70.0f       // Each blade in a clump is this far behind the last in the sway, so they don't move together
 #define SEAWEED_SINK 1.0f                   // Base starts below the seabed, so it never floats above the lower far ground
 #define SEAWEED_SWAY_SPEED_DEG_PER_SEC 90.0f   // Sway speed (90 = one wave up the blade every 4 seconds)
+#define DAY_LENGTH_SEC 20.0f                // One full day and night while n is on, seconds
+#define MIDDAY_DEG 90.0f                    // Sun position at midday. 0 = sunrise, 180 = sunset, 270 = midnight
+#define SUN_FADE_HEIGHT 0.3f                // Day fades to night while the sun height is within this of the horizon (1 = overhead), about 2 s each way
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
@@ -312,6 +316,28 @@ GLfloat mainLightDirection[] = { 0.3f, 1.0f, 0.4f, 0.0f };
 
 // Sea colour, used for both the background (glClearColor) and the fog, so they always match.
 GLfloat waterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
+
+// Main light colours at midday, also used when the day/night cycle is off.
+GLfloat middayDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };    // Blue-green, like daylight filtered through sea water
+GLfloat middaySpecular[] = { 0.7f, 0.85f, 0.9f, 1 };      // Slightly blue highlights
+
+// Main light colour when the sun is low, at sunrise and sunset.
+GLfloat sunsetDiffuse[] = { 1.0f, 0.5f, 0.25f, 1 };       // Warm orange
+
+// Sea colour at night: nearly black, so the spotlight stands out.
+GLfloat nightWaterColour[] = { 0.0f, 0.02f, 0.06f, 1 };
+
+// Day/night cycle on (1) or off (0), n key. Default off (always midday).
+int dayNightEnabled = 0;
+
+// Where the sun is round its circle, degrees: 0 sunrise, 90 midday, 180 sunset, 270 midnight.
+float dayPhase = MIDDAY_DEG;
+
+// This frame's main light colours and sea colour, worked out in think() from dayPhase.
+// They start at the midday values, because think() isn't called before the first frame.
+GLfloat sunDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };
+GLfloat sunSpecular[] = { 0.7f, 0.85f, 0.9f, 1 };
+GLfloat currentWaterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
 
 // Spotlight sweep phase in degrees. think() advances it, and drawLights() turns it into a side-to-side swing.
 float spotlightSweepPhase = 0.0f;
@@ -457,6 +483,9 @@ void display(void)
 		Remember to add prototypes for any new functions to the "Animation-Specific
 		Function Prototypes" section near the top of this template.
 	*/
+	// Background and fog in this frame's sea colour, which darkens at night when the day/night cycle is on.
+	glClearColor(currentWaterColour[0], currentWaterColour[1], currentWaterColour[2], currentWaterColour[3]);
+	glFogfv(GL_FOG_COLOR, currentWaterColour);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -597,6 +626,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_SEAWEED_TOGGLE:
 		seaweedEnabled = !seaweedEnabled;
+		break;
+	case KEY_DAY_NIGHT_TOGGLE:
+		dayNightEnabled = !dayNightEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -990,6 +1022,44 @@ void think(void)
 	if (seaweedSwayPhase >= 360.0f) {
 		seaweedSwayPhase -= 360.0f;
 	}
+
+	// Day and night: while n is on, the sun goes once round its circle every DAY_LENGTH_SEC.
+	// When off, it goes back to midday, which matches the normal lighting.
+	if (dayNightEnabled) {
+		dayPhase += (360.0f / DAY_LENGTH_SEC) * FRAME_TIME_SEC;
+		if (dayPhase >= 360.0f) {
+			dayPhase -= 360.0f;
+		}
+	}
+	else {
+		dayPhase = MIDDAY_DEG;
+	}
+
+	// Sun height: 1 at midday, 0 at sunrise and sunset, below 0 at night.
+	float sunHeight = sinf(dayPhase * DEG_TO_RAD);
+	// Brightness: fully bright while the sun is well up, fully dark while it's well down, and fading
+	// only while it's within SUN_FADE_HEIGHT of the horizon. Day and night are the same length.
+	float daylight = (sunHeight + SUN_FADE_HEIGHT) / (2.0f * SUN_FADE_HEIGHT);
+	if (daylight > 1.0f) {
+		daylight = 1.0f;
+	}
+	if (daylight < 0.0f) {
+		daylight = 0.0f;
+	}
+	// Orange when the sun is near the horizon, at sunrise and sunset. Blue at midday and midnight.
+	float warmth = 1.0f - fabsf(sunHeight);
+
+	// The sun crosses the sky from +X to -X. At midday this is the original main light direction.
+	// At night the dim light still comes from above, like moonlight, instead of lighting things from underneath.
+	mainLightDirection[0] = 0.3f + cosf(dayPhase * DEG_TO_RAD);
+	mainLightDirection[1] = fabsf(sunHeight);
+
+	// Blend each colour channel (red, green, blue) between its midday and sunset colours, then dim it for the time of day.
+	for (int c = 0; c < 3; c++) {
+		sunDiffuse[c] = (middayDiffuse[c] * (1.0f - warmth) + sunsetDiffuse[c] * warmth) * daylight;
+		sunSpecular[c] = middaySpecular[c] * daylight;
+		currentWaterColour[c] = nightWaterColour[c] + (waterColour[c] - nightWaterColour[c]) * daylight;
+	}
 }
 
 /*
@@ -1004,8 +1074,6 @@ void initLights(void)
 	// Simple lighting setup
 	GLfloat globalAmbient[] = { 0.10f, 0.12f, 0.18f, 1 };   // Dim and blue, so the spotlight stands out
 	GLfloat ambientLight[] = { 0, 0, 0, 1 };
-	GLfloat diffuseLight[] = { 0.55f, 0.75f, 0.85f, 1 };     // Blue-green, like daylight filtered through sea water
-	GLfloat specularLight[] = { 0.7f, 0.85f, 0.9f, 1 };      // Slightly blue highlights
 	GLfloat spotDiffuse[] = { 1.0f, 0.9f, 0.6f, 1 };         // Warm yellow beam, stands out against the blue water
 	GLfloat spotSpecular[] = { 1.0f, 1.0f, 0.9f, 1 };
 	
@@ -1015,8 +1083,8 @@ void initLights(void)
 	// Configure Light 0.
 	glLightfv(GL_LIGHT0, GL_POSITION, mainLightDirection);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, middayDiffuse);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, middaySpecular);
 
 	// Configure Light 1: the sweeping spotlight. Its position and direction are set every frame in drawLights().
 	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientLight);
@@ -1226,6 +1294,9 @@ void drawLights(void) {
 
 	// Main light: set after gluLookAt so its direction is fixed in the world, not to the camera.
 	glLightfv(GL_LIGHT0, GL_POSITION, mainLightDirection);
+	// Main light colours for this time of day, worked out in think().
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, sunDiffuse);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, sunSpecular);
 
 	// Spotlight: same transforms as the octopus, so it moves and turns with it.
 	glPushMatrix();
