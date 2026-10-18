@@ -119,6 +119,7 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_FISH_TOGGLE		'f'
 #define KEY_SEAWEED_TOGGLE	'g'
 #define KEY_DAY_NIGHT_TOGGLE	'n'
+#define KEY_HUD_TOGGLE		'k'
 #define KEY_EXIT			27 // Escape key.
 
 // Define all GLUT special keys used for input (add any new key definitions here).
@@ -171,6 +172,8 @@ void drawFish(void);
 void initSeaweed(void);
 void drawSeaweed(void);
 void drawSeaweedBlade(float height, float phase);
+void drawHud(void);
+void drawHudLine(int line, const char* key, const char* label, int state);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -249,6 +252,11 @@ void drawSeaweedBlade(float height, float phase);
 #define SEAWEED_SWAY_SPEED_DEG_PER_SEC 90.0f   // Sway speed (90 = one wave up the blade every 4 seconds)
 #define DAY_LENGTH_SEC 20.0f                // One full day and night while n is on, seconds
 #define MIDDAY_DEG 90.0f                    // Sun position at midday. 0 = sunrise, 180 = sunset, 270 = midnight
+#define HUD_MARGIN 10                       // Gap between the key help and the window's top-left corner, pixels
+#define HUD_FONT GLUT_BITMAP_HELVETICA_12   // GLUT's closest font to Arial
+#define HUD_LINE_HEIGHT 16                  // Pixels between lines of key help
+#define HUD_LABEL_OFFSET 50                 // Pixels from the key column to the label column
+#define HUD_NO_STATE -1                     // Passed to drawHudLine() for keys that aren't on/off toggles
 #define SUN_FADE_HEIGHT 0.3f                // Day fades to night while the sun height is within this of the horizon (1 = overhead), about 2 s each way
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
@@ -320,6 +328,7 @@ GLfloat waterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
 // Main light colours at midday, also used when the day/night cycle is off.
 GLfloat middayDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };    // Blue-green, like daylight filtered through sea water
 GLfloat middaySpecular[] = { 0.7f, 0.85f, 0.9f, 1 };      // Slightly blue highlights
+GLfloat middayAmbient[] = { 0.1f, 0.15f, 0.2f, 1 };       // Soft blue-green fill, so sides facing away from the light aren't black
 
 // Main light colour when the sun is low, at sunrise and sunset.
 GLfloat sunsetDiffuse[] = { 1.0f, 0.5f, 0.25f, 1 };       // Warm orange
@@ -330,6 +339,9 @@ GLfloat nightWaterColour[] = { 0.0f, 0.02f, 0.06f, 1 };
 // Day/night cycle on (1) or off (0), n key. Default off (always midday).
 int dayNightEnabled = 0;
 
+// On-screen key help in the top-left corner: shown (1) or hidden (0), k key. Default shown.
+int hudEnabled = 1;
+
 // Where the sun is round its circle, degrees: 0 sunrise, 90 midday, 180 sunset, 270 midnight.
 float dayPhase = MIDDAY_DEG;
 
@@ -337,6 +349,7 @@ float dayPhase = MIDDAY_DEG;
 // They start at the midday values, because think() isn't called before the first frame.
 GLfloat sunDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };
 GLfloat sunSpecular[] = { 0.7f, 0.85f, 0.9f, 1 };
+GLfloat sunAmbient[] = { 0.1f, 0.15f, 0.2f, 1 };
 GLfloat currentWaterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
 
 // Spotlight sweep phase in degrees. think() advances it, and drawLights() turns it into a side-to-side swing.
@@ -535,6 +548,10 @@ void display(void)
 		drawFish();
 	}
 	drawBubbles();
+	// Key help goes last, so it's drawn over the top of everything.
+	if (hudEnabled) {
+		drawHud();
+	}
 	glutSwapBuffers();
 	
 }
@@ -629,6 +646,9 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_DAY_NIGHT_TOGGLE:
 		dayNightEnabled = !dayNightEnabled;
+		break;
+	case KEY_HUD_TOGGLE:
+		hudEnabled = !hudEnabled;
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -1058,6 +1078,7 @@ void think(void)
 	for (int c = 0; c < 3; c++) {
 		sunDiffuse[c] = (middayDiffuse[c] * (1.0f - warmth) + sunsetDiffuse[c] * warmth) * daylight;
 		sunSpecular[c] = middaySpecular[c] * daylight;
+		sunAmbient[c] = middayAmbient[c] * daylight;
 		currentWaterColour[c] = nightWaterColour[c] + (waterColour[c] - nightWaterColour[c]) * daylight;
 	}
 }
@@ -1082,7 +1103,7 @@ void initLights(void)
 	
 	// Configure Light 0.
 	glLightfv(GL_LIGHT0, GL_POSITION, mainLightDirection);
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, middayAmbient);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, middayDiffuse);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, middaySpecular);
 
@@ -1297,6 +1318,7 @@ void drawLights(void) {
 	// Main light colours for this time of day, worked out in think().
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, sunDiffuse);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, sunSpecular);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, sunAmbient);
 
 	// Spotlight: same transforms as the octopus, so it moves and turns with it.
 	glPushMatrix();
@@ -1688,6 +1710,84 @@ void drawSeaweedBlade(float height, float phase) {
 		glVertex3f(x + halfWidth, y, 0.0f);
 	}
 	glEnd();
+}
+
+/*
+	Draw the key help in the top-left corner, with ON or OFF next to each toggle.
+	Switches to a flat 2D projection measured in pixels, draws the text, then puts the 3D setup back.
+*/
+void drawHud(void) {
+	GLfloat white[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat noGlow[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	int width = glutGet(GLUT_WINDOW_WIDTH);
+	int height = glutGet(GLUT_WINDOW_HEIGHT);
+
+	// 2D projection: (0, 0) is the bottom-left pixel and (width, height) the top-right.
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0, width, 0, height);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	// Text sits on top of everything and isn't faded by the fog.
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_FOG);
+
+	// White glowing material (not glColor), the same way as the axes: reflect no light, so only the glow shows.
+	setMaterial(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, white);
+
+	drawHudLine(0, "w", "Swim forward", surgeEnabled);
+	drawHudLine(1, "Space", "Motor / hover", motorEnabled);
+	drawHudLine(2, "Up/Dn", "Rise / sink", HUD_NO_STATE);
+	drawHudLine(3, "Lt/Rt", "Turn", HUD_NO_STATE);
+	drawHudLine(4, "a/d", "Strafe", HUD_NO_STATE);
+	drawHudLine(5, "c", "Front view", cameraFrontView);
+	drawHudLine(6, "l", "Wireframe", !renderFillEnabled);
+	drawHudLine(7, "1", "Main light", mainLightEnabled);
+	drawHudLine(8, "2", "Spotlight", spotlightEnabled);
+	drawHudLine(9, "h", "Hills", hillsEnabled);
+	drawHudLine(10, "x", "Axes", axesEnabled);
+	drawHudLine(11, "b", "Bubbles", bubblesEnabled);
+	drawHudLine(12, "f", "Fish", fishEnabled);
+	drawHudLine(13, "g", "Seaweed", seaweedEnabled);
+	drawHudLine(14, "n", "Day / night", dayNightEnabled);
+	drawHudLine(15, "k", "Hide this help", HUD_NO_STATE);
+	drawHudLine(16, "Esc", "Exit", HUD_NO_STATE);
+
+	// Back to normal 3D drawing.
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, noGlow);
+	glEnable(GL_FOG);
+	glEnable(GL_DEPTH_TEST);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+}
+
+/*
+	Draw one line of key help, counting lines down from the top of the window.
+	state is 1 (ON), 0 (OFF) or HUD_NO_STATE for keys that aren't toggles.
+	The letters in the font are different widths, so the key and label are drawn at two fixed
+	x positions to keep the labels lined up in a column.
+*/
+void drawHudLine(int line, const char* key, const char* label, int state) {
+	char text[64];
+	int y = glutGet(GLUT_WINDOW_HEIGHT) - HUD_MARGIN - (line + 1) * HUD_LINE_HEIGHT;
+
+	if (state == HUD_NO_STATE) {
+		sprintf(text, "%s", label);
+	}
+	else {
+		sprintf(text, "%s: %s", label, state ? "ON" : "OFF");
+	}
+
+	glRasterPos2i(HUD_MARGIN, y);
+	glutBitmapString(HUD_FONT, (const unsigned char*)key);
+	glRasterPos2i(HUD_MARGIN + HUD_LABEL_OFFSET, y);
+	glutBitmapString(HUD_FONT, (const unsigned char*)text);
 }
 
 /****************************************2026****************************************/
