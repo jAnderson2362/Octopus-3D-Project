@@ -13,7 +13,7 @@
  *
  ******************************************************************************/
 
-#define _CRT_SECURE_NO_WARNINGS   // Allow standard fopen; MSVC's fopen_s is Windows-only
+#define _CRT_SECURE_NO_WARNINGS   // Lets us use fopen without Visual Studio warnings
 
 #include <Windows.h>
 #include <freeglut.h>
@@ -181,9 +181,9 @@ void drawHudLine(int line, const char* key, const char* label, int state);
 
 #define GROUND_SIZE 100
 #define TILE_SIZE 1
-#define FAR_GROUND_SIZE 800       // Coarse ground out towards the horizon, metres across
-#define FAR_TILE_SIZE 10          // Big far tiles: the detail can't be seen that far away
-#define FAR_GROUND_DROP 1.0f      // Far ground sits this far lower, so where it overlaps the near ground it stays hidden underneath
+#define FAR_GROUND_SIZE 800       // Size of the far ground, metres
+#define FAR_TILE_SIZE 10          // Far tiles are bigger, since you can't see detail that far away
+#define FAR_GROUND_DROP 1.0f      // Far ground sits a bit lower so it hides under the near ground
 #define BODY_RADIUS 3.0f
 #define EYE_RADIUS 0.5f
 #define	TENTACLE_RADIUS 1.0f
@@ -191,78 +191,78 @@ void drawHudLine(int line, const char* key, const char* label, int state);
 #define TENTACLE_COUNT 8
 #define PROPELLER_SIZE 1.5f
 #define BEAK_TUBE_RADIUS 0.15f    // Thickness of the beak ring
-#define BEAK_RING_RADIUS 0.45f    // Size of the beak ring, centre to middle of the tube
+#define BEAK_RING_RADIUS 0.45f    // Size of the beak ring
 #define BEAK_OFFSET_Y -1.0f       // Below the eyes
-#define BEAK_DEPTH 0.92f          // How far forward, as a fraction of the body radius
-#define BEAK_TILT_DEG 20.0f       // Tilts the ring down so it sits flat on the curved body
+#define BEAK_DEPTH 0.92f          // How far forward on the body (1 = on the surface)
+#define BEAK_TILT_DEG 20.0f       // Tilts the ring to sit flat on the round body
 #define EYE_OFFSET_X 1.0f
 #define EYE_OFFSET_Y 1.0f
 #define EYE_DEPTH 0.79f
 #define CHEEK_RADIUS 0.7f         // Size of each cheek before flattening
-#define CHEEK_FLATTEN 0.35f       // Squashes the cheek into a disc on the body surface (1 = round)
-#define CHEEK_ANGLE_DEG 45.0f     // How far round from the front towards each side
+#define CHEEK_FLATTEN 0.35f       // Squashes the cheek flat (1 = round)
+#define CHEEK_ANGLE_DEG 45.0f     // How far round from the front
 #define CHEEK_OFFSET_Y -0.3f      // Slightly below the body's centre
-#define CHEEK_DEPTH 0.95f         // How far out from the centre, as a fraction of the body radius
-#define AXIS_LENGTH 20.0f         // Length of each debug world axis line from the origin
-#define AXIS_LIFT 0.05f           // Raises the axes just above the seabed so they don't flicker into it
-#define HILL_MAX_HEIGHT 3.0f      // Highest the hills can reach: the three wave heights in groundHeight() added up
+#define CHEEK_DEPTH 0.95f         // How far out on the body (1 = on the surface)
+#define AXIS_LENGTH 20.0f         // Length of each axis line
+#define AXIS_LIFT 0.05f           // Lifts the axes above the seabed so they don't flicker
+#define HILL_MAX_HEIGHT 3.0f      // Tallest the hills can get
 #define MAX_BUBBLES 50                      // Most bubbles that can exist at once
 #define BUBBLE_RADIUS 0.15f                 // Size of a new bubble, metres
 #define BUBBLE_INTERVAL_SEC 0.3f            // Time between bubbles while bubbling is on
-#define BUBBLE_MIN_RISE_SPEED_MPS 1.2f      // Each bubble rises at a random speed between these two
+#define BUBBLE_MIN_RISE_SPEED_MPS 1.2f      // Random rise speed range
 #define BUBBLE_MAX_RISE_SPEED_MPS 2.5f
-#define BUBBLE_MIN_SCALE 0.5f               // Each bubble is a random size between these, times BUBBLE_RADIUS
+#define BUBBLE_MIN_SCALE 0.5f               // Random size range (times BUBBLE_RADIUS)
 #define BUBBLE_MAX_SCALE 1.6f
-#define BUBBLE_SPREAD 0.3f                  // Bubbles start up to this far from the beak centre, metres
+#define BUBBLE_SPREAD 0.3f                  // How far from the beak bubbles can start, metres
 #define BUBBLE_ALPHA 0.35f                  // How solid bubbles look (0 = invisible, 1 = solid)
 #define BUBBLE_LIFETIME_SEC 4.0f            // Bubbles pop after this long
 #define BUBBLE_GROWTH_PER_SEC 0.25f         // Bubbles grow as they rise (0.25 = 25% bigger each second)
 #define BUBBLE_WOBBLE 0.2f                  // How far bubbles sway side to side, metres
 #define BUBBLE_WOBBLE_SPEED_DEG_PER_SEC 360.0f  // Sway speed (360 = one sway each way per second)
 #define FISH_COUNT 40                       // Number of fish swimming around the world
-#define FISH_SIZE 0.75f                     // Body sphere radius before stretching, metres
+#define FISH_SIZE 0.75f                     // Fish body size, metres
 #define FISH_WIDTH 0.4f                     // Squashes the body sideways (1 = round)
 #define FISH_HEIGHT 0.7f                    // Squashes the body top to bottom (1 = round)
 #define FISH_TAIL_LENGTH 0.625f             // Tail fin length, metres
-#define FISH_TAIL_RADIUS 0.44f              // Tail fin height at its wide end, metres
-#define FISH_TAIL_FLATTEN 0.25f             // Squashes the tail cone into a flat fin (1 = round)
-#define FISH_AREA 120.0f                    // Each fish circles a random spot up to this far from the origin in X and Z, metres
-#define FISH_MIN_ORBIT 3.0f                 // Random circle size round that spot, metres
+#define FISH_TAIL_RADIUS 0.44f              // Tail fin height, metres
+#define FISH_TAIL_FLATTEN 0.25f             // Flattens the tail into a fin (1 = round)
+#define FISH_AREA 120.0f                    // Fish are spread up to this far from the middle, metres
+#define FISH_MIN_ORBIT 3.0f                 // Random size of each fish's circle, metres
 #define FISH_MAX_ORBIT 10.0f
-#define FISH_MIN_SWIM_Y (HILL_MAX_HEIGHT + 1.0f)   // Random swimming height, kept above the highest hill
+#define FISH_MIN_SWIM_Y (HILL_MAX_HEIGHT + 1.0f)   // Random swim height, always above the hills
 #define FISH_MAX_SWIM_Y 12.0f
 #define FISH_MIN_SPEED_DEG_PER_SEC 20.0f    // Random speed round the circle
 #define FISH_MAX_SPEED_DEG_PER_SEC 45.0f
 #define FISH_TAIL_SWING_DEG 25.0f           // How far the tail swings to each side
 #define FISH_TAIL_SPEED_DEG_PER_SEC 720.0f  // Tail wag speed (720 = two wags each way per second)
 #define SEAWEED_COUNT 250                   // Number of seaweed clumps on the seabed
-#define SEAWEED_AREA 120.0f                 // Clumps grow up to this far from the origin in X and Z, metres
-#define SEAWEED_BLADES 5                    // Blades in each clump, fanned out side by side
-#define SEAWEED_MIN_HEIGHT 3.0f             // Each blade is a random height between these, metres (includes SEAWEED_SINK)
+#define SEAWEED_AREA 120.0f                 // Seaweed is spread up to this far from the middle, metres
+#define SEAWEED_BLADES 5                    // Blades in each clump
+#define SEAWEED_MIN_HEIGHT 3.0f             // Random blade height range, metres
 #define SEAWEED_MAX_HEIGHT 6.0f
-#define SEAWEED_WIDTH 0.3f                  // Half the width of a blade at its base, metres. Tapers to a point at the tip
-#define SEAWEED_CURL 0.5f                   // How far the blade waves side to side at its tip, metres
-#define SEAWEED_WAVES 1.5f                  // Number of S-bends along a blade
+#define SEAWEED_WIDTH 0.3f                  // Half the blade width at the bottom, metres
+#define SEAWEED_CURL 0.5f                   // How far the tip waves side to side, metres
+#define SEAWEED_WAVES 1.5f                  // Number of wiggles in each blade
 #define SEAWEED_STEPS 12                    // Strips per blade: more is smoother
-#define SEAWEED_LEAN_DEG 12.0f              // Each blade leans this much more than the one next to it, so the clump fans out
-#define SEAWEED_BLADE_SPREAD 0.2f           // Gap between neighbouring blade bases, side to side, metres
-#define SEAWEED_BLADE_GAP 0.1f              // Each blade sits this far behind the last, so overlapping blades don't flicker
-#define SEAWEED_BLADE_PHASE_DEG 70.0f       // Each blade in a clump is this far behind the last in the sway, so they don't move together
-#define SEAWEED_SINK 1.0f                   // Base starts below the seabed, so it never floats above the lower far ground
+#define SEAWEED_LEAN_DEG 12.0f              // How much the blades lean out, so the clump fans open
+#define SEAWEED_BLADE_SPREAD 0.2f           // Gap between blades, metres
+#define SEAWEED_BLADE_GAP 0.1f              // Small gap front to back so blades don't flicker
+#define SEAWEED_BLADE_PHASE_DEG 70.0f       // Blades in a clump sway out of step
+#define SEAWEED_SINK 1.0f                   // Pushes the bottom into the seabed so it never floats
 #define SEAWEED_SWAY_SPEED_DEG_PER_SEC 90.0f   // Sway speed (90 = one wave up the blade every 4 seconds)
-#define DAY_LENGTH_SEC 20.0f                // One full day and night while n is on, seconds
-#define MIDDAY_DEG 90.0f                    // Sun position at midday. 0 = sunrise, 180 = sunset, 270 = midnight
-#define HUD_MARGIN 10                       // Gap between the key help and the window's top-left corner, pixels
+#define DAY_LENGTH_SEC 20.0f                // Seconds for one full day and night
+#define MIDDAY_DEG 90.0f                    // Sun angle at midday (0 = sunrise, 180 = sunset)
+#define HUD_MARGIN 10                       // Gap from the corner of the window, pixels
 #define HUD_FONT GLUT_BITMAP_HELVETICA_12   // GLUT's closest font to Arial
 #define HUD_LINE_HEIGHT 16                  // Pixels between lines of key help
-#define HUD_LABEL_OFFSET 50                 // Pixels from the key column to the label column
-#define HUD_NO_STATE -1                     // Passed to drawHudLine() for keys that aren't on/off toggles
-#define SUN_FADE_HEIGHT 0.3f                // Day fades to night while the sun height is within this of the horizon (1 = overhead), about 2 s each way
+#define HUD_LABEL_OFFSET 50                 // Gap between the key and its label, pixels
+#define HUD_NO_STATE -1                     // For keys that aren't on/off
+#define SUN_FADE_HEIGHT 0.3f                // How close to the horizon the sun is when day fades to night
 #define AXIS_CENTRE_RADIUS 0.3f   // Small sphere marking the origin
 #define PROPELLER_SPEED_RPM 60.0f
 #define FEET_SPEED_RPM 40.0f
 #define RPM_TO_DEG_PER_SEC (360.0f / 60.0f)
-#define OCTOPUS_MIN_Y (BODY_RADIUS + TENTACLE_RADIUS) // Lowest centre height before the feet touch the seabed
+#define OCTOPUS_MIN_Y (BODY_RADIUS + TENTACLE_RADIUS) // Lowest the octopus can go before its feet hit the seabed
 #define DEG_TO_RAD (3.14159265f / 180.0f)
 
 #define MOVE_SPEED_MPS 5.0f              // Surge, sway and heave speed, metres per second
@@ -280,18 +280,18 @@ void drawHudLine(int line, const char* key, const char* label, int state);
 #define SPOTLIGHT_HEIGHT 7.0f                    // Metres above the octopus centre
 #define SPOTLIGHT_FORWARD 2.0f                   // Metres in front of the octopus centre
 #define SPOTLIGHT_CUTOFF_DEG 40.0f               // Half the cone angle
-#define SPOTLIGHT_EXPONENT 5.0f                  // How focused the beam is (higher = brighter centre, softer edge)
+#define SPOTLIGHT_EXPONENT 5.0f                  // How focused the beam is (higher = tighter)
 #define SPOTLIGHT_SWEEP_ANGLE 30.0f              // How far the beam swings to each side, degrees
-#define SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC 90.0f  // Sweep cycle speed (360 = one full left-right-left cycle per second)
+#define SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC 90.0f  // Sweep speed (360 = one full swing per second)
 
 #define SAND_TEXTURE_FILE "sand.bmp"
 #define SKIN_TEXTURE_FILE "skin.bmp"
-#define SEABED_TEXTURE_SIZE 20.0f                 // Metres of seabed covered by one copy of the sand image
+#define SEABED_TEXTURE_SIZE 20.0f                 // Metres of seabed per copy of the sand image
 
-#define FLAT_FOG_START 30.0f                     // Flat grid: fog begins just past the octopus (about 26 m from the camera)
-#define FLAT_FOG_END 90.0f                       // Flat grid: mostly fogged by the grid's far edge, so it fades instead of cutting off
-#define HILLS_FOG_START 100.0f                   // Hills: fog begins further out, so more of the hills can be seen
-#define HILLS_FOG_END 340.0f                     // Hills: fully fogged before the edge of the far ground can be seen
+#define FLAT_FOG_START 30.0f                     // Flat mode: fog starts just behind the octopus
+#define FLAT_FOG_END 90.0f                       // Flat mode: fully foggy by the grid edge, so it fades out
+#define HILLS_FOG_START 100.0f                   // Hills mode: fog starts further away
+#define HILLS_FOG_END 340.0f                     // Hills mode: fully foggy before the ground ends
 
 // Current rotation angles in degrees, updated in think().
 float propellerAngle = 0.0f;
@@ -303,56 +303,56 @@ float octopusY = OCTOPUS_MIN_Y;
 float octopusZ = 0.0f;
 float octopusHeading = 0.0f;
 
-// Motor on (1) or off (0), spacebar. Feet and propeller spin, and sway and heave work, only when on. Default off.
+// Motor on (1) or off (0), spacebar. Needed to move (except turning). Starts off.
 int motorEnabled = 0;
 
-// Swimming forward on (1) or off (0), w per spec. Only works while the motor is on. Default off.
+// Swimming forward on (1) or off (0), w key. Starts off.
 int surgeEnabled = 0;
 
-// Whether w was held last frame, so think() can detect the moment it's pressed.
+// Was w held down last frame? Used to spot when it's first pressed.
 keystate_t previousForwardKeyState = KEYSTATE_UP;
 
-// Camera's own heading in degrees. Eases towards octopusHeading so turns are visible.
+// Which way the camera faces, degrees. It slowly catches up with the octopus.
 float cameraHeading = 0.0f;
 
-// Camera view: behind the octopus (0) or in front looking at its face (1). Default behind.
+// Camera behind the octopus (0) or in front of it (1), c key.
 int cameraFrontView = 0;
 
-// Main light: directional (w = 0), shining down like sunlight through water.
-// For a directional light, x, y, z point TOWARDS the light: here from above, slightly to one side and in front.
+// Main light direction. w = 0 makes it a directional light, like the sun.
+// x, y, z point towards the light: above, a bit to the side and in front.
 GLfloat mainLightDirection[] = { 0.3f, 1.0f, 0.4f, 0.0f };
 
-// Sea colour, used for both the background (glClearColor) and the fog, so they always match.
+// Sea colour, used for the background and the fog so they match.
 GLfloat waterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
 
-// Main light colours at midday, also used when the day/night cycle is off.
-GLfloat middayDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };    // Blue-green, like daylight filtered through sea water
+// Main light colours at midday (also used when day/night is off).
+GLfloat middayDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };    // Blue-green, like sunlight under water
 GLfloat middaySpecular[] = { 0.7f, 0.85f, 0.9f, 1 };      // Slightly blue highlights
-GLfloat middayAmbient[] = { 0.1f, 0.15f, 0.2f, 1 };       // Soft blue-green fill, so sides facing away from the light aren't black
+GLfloat middayAmbient[] = { 0.1f, 0.15f, 0.2f, 1 };       // Soft fill so the dark side isn't black
 
-// Main light colour when the sun is low, at sunrise and sunset.
+// Main light colour at sunrise and sunset.
 GLfloat sunsetDiffuse[] = { 1.0f, 0.5f, 0.25f, 1 };       // Warm orange
 
 // Sea colour at night: nearly black, so the spotlight stands out.
 GLfloat nightWaterColour[] = { 0.0f, 0.02f, 0.06f, 1 };
 
-// Day/night cycle on (1) or off (0), n key. Default off (always midday).
+// Day/night cycle on (1) or off (0), n key. Starts off.
 int dayNightEnabled = 0;
 
-// On-screen key help in the top-left corner: shown (1) or hidden (0), k key. Default shown.
+// Key help in the top-left corner shown (1) or hidden (0), k key. Starts shown.
 int hudEnabled = 1;
 
-// Where the sun is round its circle, degrees: 0 sunrise, 90 midday, 180 sunset, 270 midnight.
+// Where the sun is, degrees: 0 sunrise, 90 midday, 180 sunset, 270 midnight.
 float dayPhase = MIDDAY_DEG;
 
-// This frame's main light colours and sea colour, worked out in think() from dayPhase.
-// They start at the midday values, because think() isn't called before the first frame.
+// Light and sea colours for this frame, worked out in think().
+// They start at the midday values.
 GLfloat sunDiffuse[] = { 0.55f, 0.75f, 0.85f, 1 };
 GLfloat sunSpecular[] = { 0.7f, 0.85f, 0.9f, 1 };
 GLfloat sunAmbient[] = { 0.1f, 0.15f, 0.2f, 1 };
 GLfloat currentWaterColour[] = { 0.0f, 0.1f, 0.3f, 1.0f };
 
-// Spotlight sweep phase in degrees. think() advances it, and drawLights() turns it into a side-to-side swing.
+// Spotlight swing position, degrees. Moved on in think().
 float spotlightSweepPhase = 0.0f;
 
 // Light switches: on (1) or off (0). Both start on.
@@ -362,28 +362,26 @@ int spotlightEnabled = 1;
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
 
-// Seabed: flat grid at the origin (0, per spec) or endless hills (1, extra feature). Default flat.
+// Seabed flat (0) or hills (1), h key. Starts flat.
 int hillsEnabled = 0;
 
-// Debug world XYZ axes at the origin: shown (1) or hidden (0). Default hidden.
+// XYZ axes at the middle shown (1) or hidden (0), x key. Starts hidden.
 int axesEnabled = 0;
 
-// Texture IDs from glGenTextures, set once in init(). 0 means not loaded.
+// Texture IDs, set in init(). 0 means it didn't load.
 GLuint sandTexture = 0;
 GLuint skinTexture = 0;
 
-// Quadric for the body sphere. Unlike glutSolidSphere, it can generate texture coordinates.
+// Used to draw textured spheres (glutSolidSphere can't take a texture).
 GLUquadric* bodyQuadric = NULL;
 
-// Seabed display list: compiled once and replayed every frame. Only rebuilt when the ground
-// moves (hills, every FAR_TILE_SIZE metres) or the seabed mode changes.
+// Seabed display list. Only rebuilt when the seabed changes or moves.
 GLuint groundList = 0;
 int groundListCentreX = 0;
 int groundListCentreZ = 0;
-int groundListHills = -1;      // Seabed mode the list was built for (-1 = not built yet)
+int groundListHills = -1;      // Seabed mode the list was made for (-1 = not made yet)
 
-// One bubble: its position in the world, how long it has existed, its own size and rise speed,
-// and whether this slot is in use.
+// One bubble: where it is, how old it is, its size and speed, and whether it's in use.
 typedef struct {
 	float x, y, z;
 	float age;
@@ -392,20 +390,19 @@ typedef struct {
 	int active;
 } bubble_t;
 
-// All bubble slots. Globals start at zero, so every slot starts unused.
+// All the bubbles. They all start unused.
 bubble_t bubbles[MAX_BUBBLES];
 
 // Bubbling on (1) or off (0), b key. Default off.
 int bubblesEnabled = 0;
 
-// Time since the last bubble was released, so think() knows when to release the next one.
+// Time since the last bubble came out.
 float bubbleSpawnTimer = 0.0f;
 
-// Display list holding one bubble sphere, compiled once in init() and reused for every bubble.
+// Display list with one bubble sphere, reused for every bubble.
 GLuint bubbleList = 0;
 
-// One fish: the spot in the world it circles, how far round its circle it is, how far out and
-// how high it swims, and its speed.
+// One fish: the spot it circles, where it is on the circle, circle size, height and speed.
 typedef struct {
 	float centreX, centreZ;
 	float angle;
@@ -414,30 +411,29 @@ typedef struct {
 	float speed;
 } fish_t;
 
-// All the fish, given their random values once in initFish().
+// All the fish, set up in initFish().
 fish_t fish[FISH_COUNT];
 
 // Fish on (1) or off (0), f key. Default off.
 int fishEnabled = 0;
 
-// Tail wag position, degrees. Each fish adds its own offset so the tails don't wag together.
+// Tail wag position, degrees.
 float fishTailPhase = 0.0f;
 
-// One seaweed clump: where it grows on the seabed, its own starting point in the sway
-// (so the clumps don't move together), and the height of each of its blades.
+// One seaweed clump: where it grows, its sway start point and each blade's height.
 typedef struct {
 	float x, z;
 	float phase;
 	float bladeHeight[SEAWEED_BLADES];
 } seaweed_t;
 
-// All the seaweed, given their random values once in initSeaweed().
+// All the seaweed, set up in initSeaweed().
 seaweed_t seaweed[SEAWEED_COUNT];
 
 // Seaweed on (1) or off (0), g key. Default off.
 int seaweedEnabled = 0;
 
-// Sway position, degrees. Advanced in think() and turned into a moving wave in drawSeaweedBlade().
+// Seaweed sway position, degrees.
 float seaweedSwayPhase = 0.0f;
 
 /******************************************************************************
@@ -496,15 +492,15 @@ void display(void)
 		Remember to add prototypes for any new functions to the "Animation-Specific
 		Function Prototypes" section near the top of this template.
 	*/
-	// Background and fog in this frame's sea colour, which darkens at night when the day/night cycle is on.
+	// Background and fog colour (gets darker at night).
 	glClearColor(currentWaterColour[0], currentWaterColour[1], currentWaterColour[2], currentWaterColour[3]);
 	glFogfv(GL_FOG_COLOR, currentWaterColour);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	// A negative distance puts the camera in front of the octopus, looking back at its face.
+	// Negative distance puts the camera in front of the octopus.
 	float cameraDistance = cameraFrontView ? -CAMERA_DISTANCE_BEHIND : CAMERA_DISTANCE_BEHIND;
-	// Tracking camera: behind and above the octopus, looking at its centre.
+	// Camera behind and above the octopus, looking at it.
 	gluLookAt(octopusX - getForwardX(cameraHeading) * cameraDistance,   // Eye X
 		octopusY + CAMERA_HEIGHT_ABOVE,                                  // Eye Y
 		octopusZ - getForwardZ(cameraHeading) * cameraDistance,          // Eye Z
@@ -512,7 +508,7 @@ void display(void)
 		0, 1, 0);                                                        // Up
 	drawLights();
 
-	// Fog distances depend on the seabed: close in for the small flat grid, far out for the endless hills.
+	// Fog is closer for the flat grid and further away for the hills.
 	if (hillsEnabled) {
 		glFogf(GL_FOG_START, HILLS_FOG_START);
 		glFogf(GL_FOG_END, HILLS_FOG_END);
@@ -530,10 +526,9 @@ void display(void)
 	}
 
 	drawGround();
-	// Debug world axes at the origin, where the seabed grid is centred.
+	// XYZ axes at the middle of the seabed.
 	if (axesEnabled) {
-		// Just above the seabed so the X and Z lines aren't hidden in it. With hills on, lift them
-		// above the highest possible hill.
+		// Lift the axes above the seabed (and above the hills when they're on).
 		float axisHeight = hillsEnabled ? HILL_MAX_HEIGHT + AXIS_LIFT : AXIS_LIFT;
 		glPushMatrix();
 		glTranslatef(0.0f, axisHeight, 0.0f);
@@ -548,7 +543,7 @@ void display(void)
 		drawFish();
 	}
 	drawBubbles();
-	// Key help goes last, so it's drawn over the top of everything.
+	// Key help last, so it's on top.
 	if (hudEnabled) {
 		drawHud();
 	}
@@ -828,21 +823,21 @@ void init(void)
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(waterColour[0], waterColour[1], waterColour[2], waterColour[3]);
 
-	// Fog in the water colour, so distant things fade into the background. Distances are set each frame in display().
+	// Fog in the water colour so far things fade away.
 	glFogi(GL_FOG_MODE, GL_LINEAR);
 	glFogfv(GL_FOG_COLOR, waterColour);
 	glEnable(GL_FOG);
 
-	// Textures are loaded once here, never in display().
+	// Load the textures once here.
 	sandTexture = loadTexture(SAND_TEXTURE_FILE);
 	skinTexture = loadTexture(SKIN_TEXTURE_FILE);
 
 	bodyQuadric = gluNewQuadric();
-	gluQuadricTexture(bodyQuadric, GL_TRUE);   // Generate texture coordinates for the sphere
+	gluQuadricTexture(bodyQuadric, GL_TRUE);   // So the sphere can take a texture
 
-	groundList = glGenLists(1);   // Reserve one display list ID for the seabed
+	groundList = glGenLists(1);   // Display list for the seabed
 
-	// One bubble sphere in a display list, reused for every bubble instead of rebuilding the sphere each time.
+	// One bubble sphere in a display list, reused for every bubble.
 	bubbleList = glGenLists(1);
 	glNewList(bubbleList, GL_COMPILE);
 	glutSolidSphere(BUBBLE_RADIUS, 8, 8);
@@ -862,26 +857,25 @@ void init(void)
 */
 void think(void)
 {
-	// w switches forward swimming on/off (per spec), starting the motor if it's off. Its handler is in a
-	// DON'T CHANGE section, so detect the moment it goes from up to down here instead.
+	// w turns forward swimming on/off (and starts the motor).
+	// We can't change the w key code, so we check for a new press here.
 	if (motionKeyStates.MoveForward == KEYSTATE_DOWN && previousForwardKeyState == KEYSTATE_UP) {
 		surgeEnabled = !surgeEnabled;
 		if (surgeEnabled) {
-			motorEnabled = 1;   // Swimming forward needs the feet and propeller spinning
+			motorEnabled = 1;   // Swimming needs the motor on
 		}
 	}
 	previousForwardKeyState = motionKeyStates.MoveForward;
 
-	// Propeller only spins when the motor is on.
+	// Propeller spins while the motor is on. It goes the opposite way to the feet.
 	if (motorEnabled) {
-		propellerAngle += PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
-		if (propellerAngle >= 360.0f) {
-			propellerAngle -= 360.0f;
+		propellerAngle -= PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+		if (propellerAngle < 0.0f) {
+			propellerAngle += 360.0f;
 		}
 	}
 
-	// Feet spin when the motor is on or when turning. While turning they spin the same way as the turn,
-	// otherwise clockwise (opposite to the propeller).
+	// Feet spin while the motor is on or while turning. When turning they spin the way you turn.
 	if (motorEnabled || keyboardMotion.Yaw != MOTION_NONE) {
 		int feetDirection = MOTION_CLOCKWISE;
 		if (keyboardMotion.Yaw != MOTION_NONE) {
@@ -942,7 +936,7 @@ void think(void)
 	*/
 	if (keyboardMotion.Yaw != MOTION_NONE) {
 		/* TEMPLATE: Turn your object right (clockwise) if .Yaw < 0, or left (anticlockwise) if .Yaw > 0 */
-		// Allowed with the motor off, as in the demo. Heading kept within 0 to 360.
+		// Turning works even with the motor off. Keep the heading between 0 and 360.
 		octopusHeading += TURN_SPEED_DEG_PER_SEC * keyboardMotion.Yaw * FRAME_TIME_SEC;
 		if (octopusHeading >= 360.0f) {
 			octopusHeading -= 360.0f;
@@ -953,10 +947,10 @@ void think(void)
 	}
 	if (keyboardMotion.Surge != MOTION_NONE) {
 		/* TEMPLATE: Move your object backward if .Surge < 0, or forward if .Surge > 0 */
-		// Not used: per the spec, w toggles forward motion on/off instead of being held (see below).
+		// Not used: w is an on/off switch instead (see below).
 	}
 
-	// Surge: w switches forward swimming on and off while the motor is on.
+	// Swim forward when w is on.
 	if (motorEnabled && surgeEnabled) {
 		octopusX += getForwardX(octopusHeading) * MOVE_SPEED_MPS * FRAME_TIME_SEC;
 		octopusZ += getForwardZ(octopusHeading) * MOVE_SPEED_MPS * FRAME_TIME_SEC;
@@ -964,7 +958,7 @@ void think(void)
 
 	if (keyboardMotion.Sway != MOTION_NONE) {
 		/* TEMPLATE: Move (strafe) your object left if .Sway < 0, or right if .Sway > 0 */
-		// Right is forward swapped with one sign flipped: (-fZ, fX).
+		// Move sideways, at right angles to the way the octopus faces.
 		if (motorEnabled) {
 			octopusX -= getForwardZ(octopusHeading) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
 			octopusZ += getForwardX(octopusHeading) * MOVE_SPEED_MPS * keyboardMotion.Sway * FRAME_TIME_SEC;
@@ -977,13 +971,13 @@ void think(void)
 		}
 	}
 
-	// Never below the seabed: keep the feet above the ground under the octopus, even when swimming into a hill.
+	// Don't let the octopus go below the seabed (or into a hill).
 	float lowestY = groundHeight(octopusX, octopusZ) + OCTOPUS_MIN_Y;
 	if (octopusY < lowestY) {
 		octopusY = lowestY;
 	}
 
-	// Ease the camera heading towards the octopus heading, taking the shortest way round.
+	// Slowly turn the camera to face the same way as the octopus.
 	float headingDifference = octopusHeading - cameraHeading;
 	if (headingDifference > 180.0f) {
 		headingDifference -= 360.0f;
@@ -999,13 +993,13 @@ void think(void)
 		cameraHeading += 360.0f;
 	}
 
-	// Spotlight sweep: always running, so the beam animates even when the octopus is parked.
+	// Spotlight swings all the time.
 	spotlightSweepPhase += SPOTLIGHT_SWEEP_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
 	if (spotlightSweepPhase >= 360.0f) {
 		spotlightSweepPhase -= 360.0f;
 	}
 
-	// Bubbles: while b is on, release one from the beak every BUBBLE_INTERVAL_SEC.
+	// While b is on, let out a bubble every BUBBLE_INTERVAL_SEC.
 	if (bubblesEnabled) {
 		bubbleSpawnTimer += FRAME_TIME_SEC;
 		if (bubbleSpawnTimer >= BUBBLE_INTERVAL_SEC) {
@@ -1014,7 +1008,7 @@ void think(void)
 		}
 	}
 
-	// Every bubble rises and ages, and pops once it's too old.
+	// Bubbles rise and pop when they get too old.
 	for (int i = 0; i < MAX_BUBBLES; i++) {
 		if (bubbles[i].active) {
 			bubbles[i].y += bubbles[i].riseSpeed * FRAME_TIME_SEC;
@@ -1025,7 +1019,7 @@ void think(void)
 		}
 	}
 
-	// Every fish moves round its circle at its own speed, and the tails keep wagging.
+	// Fish swim round their circles and wag their tails.
 	for (int i = 0; i < FISH_COUNT; i++) {
 		fish[i].angle += fish[i].speed * FRAME_TIME_SEC;
 		if (fish[i].angle >= 360.0f) {
@@ -1037,14 +1031,13 @@ void think(void)
 		fishTailPhase -= 360.0f;
 	}
 
-	// Seaweed sway: always running, like the spotlight sweep.
+	// Seaweed sways all the time.
 	seaweedSwayPhase += SEAWEED_SWAY_SPEED_DEG_PER_SEC * FRAME_TIME_SEC;
 	if (seaweedSwayPhase >= 360.0f) {
 		seaweedSwayPhase -= 360.0f;
 	}
 
-	// Day and night: while n is on, the sun goes once round its circle every DAY_LENGTH_SEC.
-	// When off, it goes back to midday, which matches the normal lighting.
+	// While n is on, the sun goes round once every DAY_LENGTH_SEC. When off, it stays at midday.
 	if (dayNightEnabled) {
 		dayPhase += (360.0f / DAY_LENGTH_SEC) * FRAME_TIME_SEC;
 		if (dayPhase >= 360.0f) {
@@ -1057,8 +1050,7 @@ void think(void)
 
 	// Sun height: 1 at midday, 0 at sunrise and sunset, below 0 at night.
 	float sunHeight = sinf(dayPhase * DEG_TO_RAD);
-	// Brightness: fully bright while the sun is well up, fully dark while it's well down, and fading
-	// only while it's within SUN_FADE_HEIGHT of the horizon. Day and night are the same length.
+	// Brightness: 1 in the day, 0 at night, fading in between when the sun is near the horizon.
 	float daylight = (sunHeight + SUN_FADE_HEIGHT) / (2.0f * SUN_FADE_HEIGHT);
 	if (daylight > 1.0f) {
 		daylight = 1.0f;
@@ -1066,15 +1058,14 @@ void think(void)
 	if (daylight < 0.0f) {
 		daylight = 0.0f;
 	}
-	// Orange when the sun is near the horizon, at sunrise and sunset. Blue at midday and midnight.
+	// More orange when the sun is low.
 	float warmth = 1.0f - fabsf(sunHeight);
 
-	// The sun crosses the sky from +X to -X. At midday this is the original main light direction.
-	// At night the dim light still comes from above, like moonlight, instead of lighting things from underneath.
+	// Move the light across the sky. At night it still shines from above, like moonlight.
 	mainLightDirection[0] = 0.3f + cosf(dayPhase * DEG_TO_RAD);
 	mainLightDirection[1] = fabsf(sunHeight);
 
-	// Blend each colour channel (red, green, blue) between its midday and sunset colours, then dim it for the time of day.
+	// Mix the midday and sunset colours, then dim them for the time of day.
 	for (int c = 0; c < 3; c++) {
 		sunDiffuse[c] = (middayDiffuse[c] * (1.0f - warmth) + sunsetDiffuse[c] * warmth) * daylight;
 		sunSpecular[c] = middaySpecular[c] * daylight;
@@ -1095,7 +1086,7 @@ void initLights(void)
 	// Simple lighting setup
 	GLfloat globalAmbient[] = { 0.10f, 0.12f, 0.18f, 1 };   // Dim and blue, so the spotlight stands out
 	GLfloat ambientLight[] = { 0, 0, 0, 1 };
-	GLfloat spotDiffuse[] = { 1.0f, 0.9f, 0.6f, 1 };         // Warm yellow beam, stands out against the blue water
+	GLfloat spotDiffuse[] = { 1.0f, 0.9f, 0.6f, 1 };         // Warm yellow beam
 	GLfloat spotSpecular[] = { 1.0f, 1.0f, 0.9f, 1 };
 	
 	// Configure global ambient lighting.
@@ -1107,7 +1098,7 @@ void initLights(void)
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, middayDiffuse);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, middaySpecular);
 
-	// Configure Light 1: the sweeping spotlight. Its position and direction are set every frame in drawLights().
+	// Light 1: the swinging spotlight. It's moved every frame in drawLights().
 	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, spotDiffuse);
 	glLightfv(GL_LIGHT1, GL_SPECULAR, spotSpecular);
@@ -1123,20 +1114,19 @@ void initLights(void)
 	glEnable(GL_NORMALIZE);
 
 	// Enable use of simple GL colours as materials.
-	// Removed: every object now sets a real material with setMaterial().
+	// Removed: every object uses setMaterial() instead.
 	
-	// Light both sides of flat shapes (the propeller), not just the front.
+	// Light both sides of flat shapes like the propeller.
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 }
 
 void drawGround() {
-	// Sand texture over a white material, so lighting shades the image without tinting it.
+	// Sand texture. White material so the texture keeps its colour.
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, sandTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, MATTE_SPECULAR, MATTE_SHININESS);
 
-	// Flat: the spec's grid, centred at the origin. Hills: centred on the octopus, snapped to whole
-	// far tiles, so it never runs out and the near square's edges line up with the far tiles.
+	// Flat mode: grid at the middle. Hills mode: follows the octopus, snapped to the far tiles.
 	int centreX = 0;
 	int centreZ = 0;
 	if (hillsEnabled) {
@@ -1144,21 +1134,21 @@ void drawGround() {
 		centreZ = (int)floorf(octopusZ / FAR_TILE_SIZE) * FAR_TILE_SIZE;
 	}
 
-	// Rebuild the display list only when the seabed mode or position has changed since it was built.
+	// Only rebuild the display list when the seabed changes or moves.
 	if (hillsEnabled != groundListHills || centreX != groundListCentreX || centreZ != groundListCentreZ) {
 		glNewList(groundList, GL_COMPILE);
 		if (hillsEnabled) {
 			// Near: small tiles, so the spotlight circle looks round.
 			drawGroundSquare(centreX, centreZ, GROUND_SIZE, TILE_SIZE, 0);
-			// Far: big tiles out towards the horizon. The hole is one far tile smaller than the near ground, so the
-			// two overlap with no cracks, and the far ground is lowered slightly so it stays hidden under the near ground.
+			// Far: big tiles out to the horizon, with a hole where the near ground is.
+			// Lowered a little so it hides under the near ground.
 			glPushMatrix();
 			glTranslatef(0.0f, -FAR_GROUND_DROP, 0.0f);
 			drawGroundSquare(centreX, centreZ, FAR_GROUND_SIZE, FAR_TILE_SIZE, GROUND_SIZE - 2 * FAR_TILE_SIZE);
 			glPopMatrix();
 		}
 		else {
-			// Spec: a flat grid of squares on the XZ plane, centred at the origin.
+			// A flat grid of squares centred at the middle.
 			drawGroundSquare(0, 0, GROUND_SIZE, TILE_SIZE, 0);
 		}
 		glEndList();
@@ -1185,7 +1175,7 @@ void drawTentacle() {
 }
 
 void drawPropeller() {
-	// Two blades meeting at the origin, flat in the XY plane so a Z rotation spins it in place.
+	// Two flat triangle blades that meet in the middle.
 	GLfloat vertices[] = {
 		// Top blade
 		0.0f, 0.0f, 0.0f,
@@ -1198,7 +1188,7 @@ void drawPropeller() {
 	};
 
 	setMaterial(1.0f, 0.5f, 0.0f, MATTE_SPECULAR, MATTE_SHININESS);
-	glNormal3f(0.0f, 0.0f, -1.0f); // Backward normal
+	glNormal3f(0.0f, 0.0f, -1.0f); // Facing backwards
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vertices);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1209,7 +1199,7 @@ void drawOctopus() {
 	glPushMatrix();
 	glTranslatef(octopusX, octopusY, octopusZ);
 	glRotatef(octopusHeading, 0, 1, 0);
-	// Skin texture on the body. White material so the texture isn't tinted cyan.
+	// Skin texture on the body. White material so it keeps its colour.
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, skinTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, WET_SPECULAR, WET_SHININESS);
@@ -1235,12 +1225,12 @@ void drawOctopus() {
 	drawPropeller();
 	glPopMatrix();
 
-	// Cheeks: flattened maroon spheres on each side of the face. side is -1 (left) or 1 (right).
+	// Cheeks: squashed maroon spheres. side is -1 (left) or 1 (right).
 	for (int side = -1; side <= 1; side += 2) {
 		glPushMatrix();
-		glRotatef(side * CHEEK_ANGLE_DEG, 0, 1, 0);                // Swing round from the front towards this side
+		glRotatef(side * CHEEK_ANGLE_DEG, 0, 1, 0);                // Turn towards this side
 		glTranslatef(0.0f, CHEEK_OFFSET_Y, BODY_RADIUS * CHEEK_DEPTH); // Out to the body surface
-		glScalef(1.0f, 1.0f, CHEEK_FLATTEN);                       // Squash along the outward direction
+		glScalef(1.0f, 1.0f, CHEEK_FLATTEN);                       // Squash it flat
 		setMaterial(0.6f, 0.1f, 0.15f, MATTE_SPECULAR, MATTE_SHININESS);
 		glutSolidSphere(CHEEK_RADIUS, 12, 12);
 		glPopMatrix();
@@ -1266,8 +1256,8 @@ void drawOctopus() {
 }
 
 /*
-	Unit vector on the ground (X and Z) for a heading in degrees.
-	Heading 0 faces +Z, heading 90 faces +X. Converts degrees to radians for sinf/cosf.
+	Which way is forward for a heading, in X and Z.
+	Heading 0 faces +Z and 90 faces +X.
 */
 float getForwardX(float headingDeg) {
 	return sinf(headingDeg * DEG_TO_RAD);
@@ -1278,9 +1268,8 @@ float getForwardZ(float headingDeg) {
 }
 
 /*
-	Set the material for everything drawn after this call.
-	The colour is used for both ambient and diffuse. Specular is a grey level (0 to 1)
-	and shininess controls how tight the highlight is (0 to 128).
+	Set the material for everything drawn after this.
+	Specular is how bright the shine is (0 to 1), shininess is how small it is (0 to 128).
 */
 void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLfloat shininess) {
 	GLfloat colour[] = { red, green, blue, 1.0f };
@@ -1292,12 +1281,11 @@ void setMaterial(GLfloat red, GLfloat green, GLfloat blue, GLfloat specular, GLf
 }
 
 /*
-	Set light positions and directions for this frame. Called after gluLookAt and before drawing,
-	so every object is lit by this frame's lights.
+	Place the lights for this frame. Called after gluLookAt.
 */
 void drawLights(void) {
-	GLfloat spotPosition[] = { 0.0f, 0.0f, 0.0f, 1.0f };   // w = 1: a light at a point, needed for a spotlight
-	GLfloat spotDirection[] = { 0.0f, -1.0f, 0.0f };       // Straight down, before the sweep is applied
+	GLfloat spotPosition[] = { 0.0f, 0.0f, 0.0f, 1.0f };   // w = 1 means a light at a point (needed for a spotlight)
+	GLfloat spotDirection[] = { 0.0f, -1.0f, 0.0f };       // Straight down before the swing
 
 	// Switch each light on or off to match its toggle key.
 	if (mainLightEnabled) {
@@ -1313,14 +1301,14 @@ void drawLights(void) {
 		glDisable(GL_LIGHT1);
 	}
 
-	// Main light: set after gluLookAt so its direction is fixed in the world, not to the camera.
+	// Main light. Set after gluLookAt so it stays fixed in the world.
 	glLightfv(GL_LIGHT0, GL_POSITION, mainLightDirection);
-	// Main light colours for this time of day, worked out in think().
+	// Main light colours for the time of day.
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, sunDiffuse);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, sunSpecular);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, sunAmbient);
 
-	// Spotlight: same transforms as the octopus, so it moves and turns with it.
+	// Spotlight moves and turns with the octopus.
 	glPushMatrix();
 	glTranslatef(octopusX, octopusY, octopusZ);
 	glRotatef(octopusHeading, 0, 1, 0);
@@ -1332,20 +1320,19 @@ void drawLights(void) {
 }
 
 /*
-	Combine 4 little-endian bytes (lowest byte first) into one int.
-	Each later byte is worth 256 times more, so it's shifted 8 bits further left.
+	Turn 4 bytes from the file into one number (the first byte is the smallest part).
 */
 int readInt32(const unsigned char* bytes) {
 	return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
 }
 
 /*
-	Load a 24-bit BMP file. Returns tightly packed RGB pixels, bottom row first
-	(the order OpenGL expects), or NULL if it can't be loaded. The caller must free() the result.
+	Load a 24-bit BMP file. Gives back the RGB pixels, or NULL if it fails.
+	The caller must free() the result.
 */
 unsigned char* loadBMP(const char* filename, int* width, int* height) {
 	unsigned char header[54];
-	FILE* file = fopen(filename, "rb");   // "b" = binary mode, so Windows doesn't alter any bytes
+	FILE* file = fopen(filename, "rb");   // "b" = read the raw bytes
 	if (file == NULL) {
 		return NULL;
 	}
@@ -1366,7 +1353,7 @@ unsigned char* loadBMP(const char* filename, int* width, int* height) {
 		return NULL;
 	}
 
-	// 3 bytes per pixel, and each row in the file is padded up to a multiple of 4 bytes.
+	// 3 bytes per pixel. Each row in the file has padding at the end.
 	int rowSize = *width * 3;
 	int padding = (4 - rowSize % 4) % 4;
 
@@ -1376,7 +1363,7 @@ unsigned char* loadBMP(const char* filename, int* width, int* height) {
 		return NULL;
 	}
 
-	// Jump to the pixel data, then read one row at a time, skipping the padding after each.
+	// Read the pixels one row at a time, skipping the padding.
 	fseek(file, dataOffset, SEEK_SET);
 	for (int row = 0; row < *height; row++) {
 		unsigned char* rowStart = pixels + row * rowSize;
@@ -1387,7 +1374,7 @@ unsigned char* loadBMP(const char* filename, int* width, int* height) {
 		}
 		fseek(file, padding, SEEK_CUR);
 
-		// BMP stores B, G, R: swap the first and third byte of each pixel to get R, G, B.
+		// BMP stores colours as B, G, R, so swap them to R, G, B.
 		for (int i = 0; i < rowSize; i += 3) {
 			unsigned char blue = rowStart[i];
 			rowStart[i] = rowStart[i + 2];
@@ -1400,8 +1387,8 @@ unsigned char* loadBMP(const char* filename, int* width, int* height) {
 }
 
 /*
-	Load a BMP and upload it to OpenGL. Returns the texture ID, or 0 if loading failed.
-	Only call from init(): loading every frame would be very slow.
+	Load a BMP into OpenGL. Gives back the texture ID, or 0 if it fails.
+	Only called in init().
 */
 GLuint loadTexture(const char* filename) {
 	int width, height;
@@ -1415,14 +1402,14 @@ GLuint loadTexture(const char* filename) {
 	glGenTextures(1, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);
 
-	// Repeat the image when texture coordinates go past 1.
+	// Repeat the image across the surface.
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// The default min filter expects mipmaps, which we don't make, so the texture would show white.
+	// Smooth filtering. Without this the texture shows up white.
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	// Our rows have no padding, so tell OpenGL not to expect each row to start on a 4-byte boundary.
+	// Our rows have no padding, so tell OpenGL that.
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
@@ -1432,9 +1419,8 @@ GLuint loadTexture(const char* filename) {
 }
 
 /*
-	Seabed height in metres at a world position. Three waves of different sizes, running in
-	different directions, are added together so the hills look irregular. The same spot always
-	gives the same height, so the hills stay put while the ground follows the octopus.
+	Height of the seabed at a spot. Three sine waves added together make the hills.
+	The same spot always gives the same height.
 */
 float groundHeight(float x, float z) {
 	if (!hillsEnabled) {
@@ -1446,11 +1432,10 @@ float groundHeight(float x, float z) {
 }
 
 /*
-	One seabed corner: a normal tilted to match the slope, a world-based texture coordinate,
-	and the vertex raised to groundHeight().
+	One corner of a seabed tile: its normal, texture position and height.
 */
 void drawGroundVertex(float x, float z) {
-	// Slope: compare the heights 1 m either side in x and in z.
+	// Work out the slope from the heights either side, for the lighting.
 	float slopeX = groundHeight(x + 1.0f, z) - groundHeight(x - 1.0f, z);
 	float slopeZ = groundHeight(x, z + 1.0f) - groundHeight(x, z - 1.0f);
 	glNormal3f(-slopeX, 2.0f, -slopeZ);
@@ -1461,13 +1446,12 @@ void drawGroundVertex(float x, float z) {
 }
 
 /*
-	Draw a square of seabed tiles centred on (centreX, centreZ), skipping a hole of holeSize
-	in the middle (0 for no hole).
+	Draw a square of seabed tiles, with an optional hole in the middle (0 = no hole).
 */
 void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int holeSize) {
 	for (int x = centreX - size / 2; x < centreX + size / 2; x += tileSize) {
 		for (int z = centreZ - size / 2; z < centreZ + size / 2; z += tileSize) {
-			// Skip tiles inside the hole, where the near ground is drawn instead.
+			// Skip tiles in the hole.
 			if (x >= centreX - holeSize / 2 && x < centreX + holeSize / 2 &&
 				z >= centreZ - holeSize / 2 && z < centreZ + holeSize / 2) {
 				continue;
@@ -1484,9 +1468,8 @@ void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int hole
 }
 
 /*
-	Debug axes in the current coordinate frame: X red, Y green, Z blue, each AXIS_LENGTH long.
-	Lines have no surface for light to fall on, so instead of glColor they use a black material
-	that glows in its own colour (emission).
+	Draw the X (red), Y (green) and Z (blue) axes.
+	They glow in their colour using emission, since lines can't be lit.
 */
 void drawAxes(void) {
 	GLfloat red[] = { 1.0f, 0.0f, 0.0f, 1.0f };
@@ -1517,7 +1500,7 @@ void drawAxes(void) {
 	glVertex3f(0.0f, 0.0f, AXIS_LENGTH);
 	glEnd();
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, noGlow);   // Stop everything drawn after this from glowing
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, noGlow);   // Turn the glow off again
 
 	// Small sphere marking the origin.
 	setMaterial(0.9f, 0.9f, 0.9f, MATTE_SPECULAR, MATTE_SHININESS);
@@ -1525,19 +1508,19 @@ void drawAxes(void) {
 }
 
 /*
-	Release one bubble from the beak, using the first free slot. If all slots are in use, no bubble is released.
+	Let out one bubble from the beak, using the first free slot.
 */
 void spawnBubble(void) {
 	for (int i = 0; i < MAX_BUBBLES; i++) {
 		if (!bubbles[i].active) {
-			// Beak position in the world: forward from the octopus centre along its heading, and down by the beak offset.
+			// Where the beak is in the world.
 			float beakForward = BODY_RADIUS * BEAK_DEPTH;
-			// A small random offset, so the bubbles don't rise in one neat column.
+			// Small random offset so bubbles don't line up.
 			bubbles[i].x = octopusX + getForwardX(octopusHeading) * beakForward + randomRange(-BUBBLE_SPREAD, BUBBLE_SPREAD);
 			bubbles[i].y = octopusY + BEAK_OFFSET_Y;
 			bubbles[i].z = octopusZ + getForwardZ(octopusHeading) * beakForward + randomRange(-BUBBLE_SPREAD, BUBBLE_SPREAD);
 			bubbles[i].age = 0.0f;
-			// Each bubble gets its own size and speed, so they spread out as they rise.
+			// Random size and speed for each bubble.
 			bubbles[i].scale = randomRange(BUBBLE_MIN_SCALE, BUBBLE_MAX_SCALE);
 			bubbles[i].riseSpeed = randomRange(BUBBLE_MIN_RISE_SPEED_MPS, BUBBLE_MAX_RISE_SPEED_MPS);
 			bubbles[i].active = 1;
@@ -1547,27 +1530,25 @@ void spawnBubble(void) {
 }
 
 /*
-	Draw every active bubble at its world position. Each one sways side to side and grows with age.
-	Bubbles are see-through, so they must be drawn after everything solid.
+	Draw all the bubbles. They wobble and grow as they rise.
+	They're see-through, so they're drawn after the solid things.
 */
 void drawBubbles(void) {
 	GLfloat bubbleColour[] = { 0.7f, 0.85f, 1.0f, BUBBLE_ALPHA };   // Pale blue, mostly see-through
 
 	setMaterial(0.7f, 0.85f, 1.0f, WET_SPECULAR, WET_SHININESS);       // Shiny highlights
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, bubbleColour);   // Same colour, but with transparency
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, bubbleColour);   // Same colour, but see-through
 
-	// Blend each bubble with what's behind it, using its alpha as the amount of bubble colour.
-	// Depth writing is off so bubbles don't hide each other or anything behind them.
+	// Turn on see-through blending, and stop bubbles hiding things behind them.
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthMask(GL_FALSE);
 
 	for (int i = 0; i < MAX_BUBBLES; i++) {
 		if (bubbles[i].active) {
-			// Sway side to side as it rises. Each slot starts at a different point in the sway,
-			// so the bubbles don't all move together.
+			// Wobble side to side. Each bubble wobbles at a different time.
 			float wobble = BUBBLE_WOBBLE * sinf((bubbles[i].age * BUBBLE_WOBBLE_SPEED_DEG_PER_SEC + i * 40.0f) * DEG_TO_RAD);
-			// Its own random size, growing with age like real bubbles expanding as they rise.
+			// Grow bigger as it gets older.
 			float size = bubbles[i].scale * (1.0f + bubbles[i].age * BUBBLE_GROWTH_PER_SEC);
 
 			glPushMatrix();
@@ -1584,16 +1565,14 @@ void drawBubbles(void) {
 }
 
 /*
-	Random number between min and max. rand() gives a whole number from 0 to RAND_MAX,
-	so dividing by RAND_MAX turns it into 0 to 1, which is then stretched to fit.
+	Random number between min and max.
 */
 float randomRange(float min, float max) {
 	return min + (rand() / (float)RAND_MAX) * (max - min);
 }
 
 /*
-	Give every fish its own random place round its circle, distance, height and speed,
-	so the school looks natural instead of moving as one block.
+	Give every fish a random spot, circle size, height and speed.
 */
 void initFish(void) {
 	for (int i = 0; i < FISH_COUNT; i++) {
@@ -1602,22 +1581,22 @@ void initFish(void) {
 		fish[i].angle = randomRange(0.0f, 360.0f);
 		fish[i].orbitRadius = randomRange(FISH_MIN_ORBIT, FISH_MAX_ORBIT);
 		fish[i].height = randomRange(FISH_MIN_SWIM_Y, FISH_MAX_SWIM_Y);
-		fish[i].speed = randomRange(FISH_MIN_SPEED_DEG_PER_SEC, FISH_MAX_SPEED_DEG_PER_SEC);	}
+		fish[i].speed = randomRange(FISH_MIN_SPEED_DEG_PER_SEC, FISH_MAX_SPEED_DEG_PER_SEC);
+	}
 }
 
 /*
-	Draw every fish circling its own spot in the world. Each fish is a stretched sphere for the body and a
-	flattened cone for the tail, which swings side to side about the back of the body.
-	The fish model faces +Z, the same as the octopus.
+	Draw every fish swimming in its circle. The body is a stretched sphere
+	and the tail is a flat cone that wags.
 */
 void drawFish(void) {
 	for (int i = 0; i < FISH_COUNT; i++) {
 		glPushMatrix();
 		glTranslatef(fish[i].centreX, fish[i].height, fish[i].centreZ);   // Centre of this fish's circle
 		glRotatef(fish[i].angle, 0, 1, 0);                             // Round the circle
-		glTranslatef(0.0f, 0.0f, fish[i].orbitRadius);                 // Out to this fish's distance
-		glRotatef(90.0f, 0, 1, 0);                                     // Face along the circle, the way it swims
-		// Every other fish is pink, the rest light grey. Their places are random, so the colours mix.
+		glTranslatef(0.0f, 0.0f, fish[i].orbitRadius);                 // Out to the edge of the circle
+		glRotatef(90.0f, 0, 1, 0);                                     // Face the way it's swimming
+		// Every other fish is pink, the rest are light grey.
 		if (i % 2 == 0) {
 			setMaterial(1.0f, 0.6f, 0.75f, WET_SPECULAR, WET_SHININESS);
 		}
@@ -1631,10 +1610,10 @@ void drawFish(void) {
 		glutSolidSphere(FISH_SIZE, 12, 12);
 		glPopMatrix();
 
-		// Tail: pivots at the back of the body. Each fish starts at a different point in the wag.
+		// Tail: wags from the back of the body.
 		glTranslatef(0.0f, 0.0f, -FISH_SIZE);
 		glRotatef(FISH_TAIL_SWING_DEG * sinf((fishTailPhase + i * 30.0f) * DEG_TO_RAD), 0, 1, 0);
-		glTranslatef(0.0f, 0.0f, -FISH_TAIL_LENGTH);   // Cone base at the back, tip touching the body
+		glTranslatef(0.0f, 0.0f, -FISH_TAIL_LENGTH);   // Point of the cone touches the body
 		glScalef(FISH_TAIL_FLATTEN, 1.0f, 1.0f);       // Flat fin, not a round cone
 		glutSolidCone(FISH_TAIL_RADIUS, FISH_TAIL_LENGTH, 8, 1);
 		glPopMatrix();
@@ -1642,8 +1621,7 @@ void drawFish(void) {
 }
 
 /*
-	Give every seaweed clump a random place on the seabed, starting point in the sway,
-	and a random height for each of its blades.
+	Give every seaweed clump a random spot, sway start point and blade heights.
 */
 void initSeaweed(void) {
 	for (int i = 0; i < SEAWEED_COUNT; i++) {
@@ -1657,22 +1635,20 @@ void initSeaweed(void) {
 }
 
 /*
-	Draw every seaweed clump: SEAWEED_BLADES wavy blades side by side, the outer ones leaning
-	further out so the clump fans open. Blades alternate light and dark green.
-	The blades are flat, so each clump is turned to face the camera (billboarding). Otherwise
-	blades seen edge-on show up as thin sharp lines.
+	Draw every seaweed clump as wavy blades side by side, light and dark green.
+	Each clump turns to face the camera so you never see a blade edge-on.
 */
 void drawSeaweed(void) {
 	for (int i = 0; i < SEAWEED_COUNT; i++) {
-		// The flat grid only covers GROUND_SIZE, so skip clumps past its edge instead of leaving them floating.
+		// In flat mode, skip seaweed past the edge of the grid.
 		if (!hillsEnabled && (fabsf(seaweed[i].x) > GROUND_SIZE / 2.0f || fabsf(seaweed[i].z) > GROUND_SIZE / 2.0f)) {
 			continue;
 		}
 
 		glPushMatrix();
-		// Rooted on the seabed, flat or hills, and sunk slightly so the base is hidden.
+		// Stand it on the seabed.
 		glTranslatef(seaweed[i].x, groundHeight(seaweed[i].x, seaweed[i].z) - SEAWEED_SINK, seaweed[i].z);
-		// Face the camera. The blades are lit on both sides, so facing towards or away looks the same.
+		// Turn to face the camera.
 		glRotatef(cameraHeading, 0, 1, 0);
 		for (int j = 0; j < SEAWEED_BLADES; j++) {
 			// Blade position from the middle of the clump: -2, -1, 0, 1, 2 for 5 blades.
@@ -1694,12 +1670,11 @@ void drawSeaweed(void) {
 }
 
 /*
-	One seaweed blade: a flat ribbon standing up from the origin in the XY plane, wide at the base
-	and tapering to a point at the tip. Its centre line follows a sine wave that grows towards the
-	tip (the base stays put) and moves up the blade as seaweedSwayPhase increases.
+	Draw one seaweed blade: a flat strip, wide at the bottom and pointed at the top.
+	It wiggles side to side using a sine wave that moves up the blade.
 */
 void drawSeaweedBlade(float height, float phase) {
-	glNormal3f(0.0f, 0.0f, 1.0f);   // Ribbon faces +Z. Two-sided lighting lights the back the same way
+	glNormal3f(0.0f, 0.0f, 1.0f);   // Faces forward (both sides get lit)
 	glBegin(GL_QUAD_STRIP);
 	for (int s = 0; s <= SEAWEED_STEPS; s++) {
 		float t = (float)s / SEAWEED_STEPS;   // 0 at the base, 1 at the tip
@@ -1713,8 +1688,8 @@ void drawSeaweedBlade(float height, float phase) {
 }
 
 /*
-	Draw the key help in the top-left corner, with ON or OFF next to each toggle.
-	Switches to a flat 2D projection measured in pixels, draws the text, then puts the 3D setup back.
+	Draw the key help in the top-left corner, with ON or OFF for each toggle.
+	Switches to 2D for the text, then back to 3D.
 */
 void drawHud(void) {
 	GLfloat white[] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -1722,7 +1697,7 @@ void drawHud(void) {
 	int width = glutGet(GLUT_WINDOW_WIDTH);
 	int height = glutGet(GLUT_WINDOW_HEIGHT);
 
-	// 2D projection: (0, 0) is the bottom-left pixel and (width, height) the top-right.
+	// 2D mode measured in pixels.
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -1731,11 +1706,11 @@ void drawHud(void) {
 	glPushMatrix();
 	glLoadIdentity();
 
-	// Text sits on top of everything and isn't faded by the fog.
+	// Text goes on top and isn't foggy.
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_FOG);
 
-	// White glowing material (not glColor), the same way as the axes: reflect no light, so only the glow shows.
+	// White glowing text, using a material like the axes (not glColor).
 	setMaterial(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, white);
 
@@ -1768,10 +1743,8 @@ void drawHud(void) {
 }
 
 /*
-	Draw one line of key help, counting lines down from the top of the window.
-	state is 1 (ON), 0 (OFF) or HUD_NO_STATE for keys that aren't toggles.
-	The letters in the font are different widths, so the key and label are drawn at two fixed
-	x positions to keep the labels lined up in a column.
+	Draw one line of key help. state is 1 (ON), 0 (OFF) or HUD_NO_STATE.
+	The key and label are drawn in two columns so they line up.
 */
 void drawHudLine(int line, const char* key, const char* label, int state) {
 	char text[64];
