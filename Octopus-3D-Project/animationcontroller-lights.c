@@ -556,6 +556,10 @@ void display(void)
 */
 void reshape(int width, int h)
 {
+	// Stops a divide by zero when the window is squashed flat.
+	if (h == 0) {
+		h = 1;
+	}
 	glViewport(0, 0, width, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -867,29 +871,6 @@ void think(void)
 	}
 	previousForwardKeyState = motionKeyStates.MoveForward;
 
-	// Propeller spins while the motor is on. It goes the opposite way to the feet.
-	if (motorEnabled) {
-		propellerAngle -= PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
-		if (propellerAngle < 0.0f) {
-			propellerAngle += 360.0f;
-		}
-	}
-
-	// Feet spin while the motor is on or while turning. When turning they spin the way you turn.
-	if (motorEnabled || keyboardMotion.Yaw != MOTION_NONE) {
-		int feetDirection = MOTION_CLOCKWISE;
-		if (keyboardMotion.Yaw != MOTION_NONE) {
-			feetDirection = keyboardMotion.Yaw;
-		}
-
-		feetAngle += FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * feetDirection * FRAME_TIME_SEC;
-		if (feetAngle >= 360.0f) {
-			feetAngle -= 360.0f;
-		}
-		if (feetAngle < 0.0f) {
-			feetAngle += 360.0f;
-		}
-	}
 	/*
 		TEMPLATE: REPLACE THIS COMMENT WITH YOUR ANIMATION/SIMULATION CODE
 
@@ -929,6 +910,30 @@ void think(void)
 		You can use this same approach to animate other things like color, opacity,
 		brightness of lights, etc.
 	*/
+
+	// Propeller spins while the motor is on. It goes the opposite way to the feet.
+	if (motorEnabled) {
+		propellerAngle -= PROPELLER_SPEED_RPM * RPM_TO_DEG_PER_SEC * FRAME_TIME_SEC;
+		if (propellerAngle < 0.0f) {
+			propellerAngle += 360.0f;
+		}
+	}
+
+	// Feet spin while the motor is on or while turning. When turning they spin the way you turn.
+	if (motorEnabled || keyboardMotion.Yaw != MOTION_NONE) {
+		int feetDirection = MOTION_CLOCKWISE;
+		if (keyboardMotion.Yaw != MOTION_NONE) {
+			feetDirection = keyboardMotion.Yaw;
+		}
+
+		feetAngle += FEET_SPEED_RPM * RPM_TO_DEG_PER_SEC * feetDirection * FRAME_TIME_SEC;
+		if (feetAngle >= 360.0f) {
+			feetAngle -= 360.0f;
+		}
+		if (feetAngle < 0.0f) {
+			feetAngle += 360.0f;
+		}
+	}
 
 	/*
 		Keyboard motion handler: complete this section to make your "player-controlled"
@@ -975,6 +980,23 @@ void think(void)
 	float lowestY = groundHeight(octopusX, octopusZ) + OCTOPUS_MIN_Y;
 	if (octopusY < lowestY) {
 		octopusY = lowestY;
+	}
+
+	// In flat mode, stay over the grid.
+	if (!hillsEnabled) {
+		float edge = GROUND_SIZE / 2.0f;
+		if (octopusX > edge) {
+			octopusX = edge;
+		}
+		if (octopusX < -edge) {
+			octopusX = -edge;
+		}
+		if (octopusZ > edge) {
+			octopusZ = edge;
+		}
+		if (octopusZ < -edge) {
+			octopusZ = -edge;
+		}
 	}
 
 	// Slowly turn the camera to face the same way as the octopus.
@@ -1169,7 +1191,7 @@ void drawTentacle() {
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, skinTexture);
 	setMaterial(1.0f, 1.0f, 1.0f, WET_SPECULAR, WET_SHININESS);
-	gluSphere(bodyQuadric, TENTACLE_RADIUS, 6, 6);
+	gluSphere(bodyQuadric, TENTACLE_RADIUS, 12, 12);
 	glDisable(GL_TEXTURE_2D);
 	glPopMatrix();
 }
@@ -1458,10 +1480,10 @@ void drawGroundSquare(int centreX, int centreZ, int size, int tileSize, int hole
 			}
 
 			glBegin(GL_QUADS);
-			drawGroundVertex(x, z);
-			drawGroundVertex(x, z + tileSize);
-			drawGroundVertex(x + tileSize, z + tileSize);
-			drawGroundVertex(x + tileSize, z);
+			drawGroundVertex((float)x, (float)z);
+			drawGroundVertex((float)x, (float)(z + tileSize));
+			drawGroundVertex((float)(x + tileSize), (float)(z + tileSize));
+			drawGroundVertex((float)(x + tileSize), (float)z);
 			glEnd();
 		}
 	}
